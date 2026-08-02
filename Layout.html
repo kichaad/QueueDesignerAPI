@@ -1,57 +1,53 @@
 <div class="container">
 
-    <div class="header">
+    <header class="header">
 
-        <h1>📋 Очередь заказов</h1>
+        <div>
 
-        <div class="toggle-group">
+            <h1>📋 Очередь изделий</h1>
+
+            <div class="subtitle">
+                Планирование работы конструкторов
+            </div>
+
+        </div>
+
+        <div class="header-actions">
+
+            <button class="toolbar-btn" id="refreshBtn">
+                ⟳ Обновить
+            </button>
+
+        </div>
+
+    </header>
+
+    <div class="toolbar">
+
+        <div class="toolbar-left">
 
             <button class="toggle-btn active">
-                Все заказы
+                Менеджеры
             </button>
+
+            <button class="toggle-btn">
+                Конструкторы
+            </button>
+
+        </div>
+
+        <div class="toolbar-right">
+
+            <span id="ordersCount">
+                Заказов: —
+            </span>
 
         </div>
 
     </div>
 
-    <div class="subtitle">
+    <main id="content">
 
-        <span id="today"></span>
-
-        <span id="summary">
-            Загрузка...
-        </span>
-
-    </div>
-
-    <div class="table-wrap">
-
-        <table class="queue-table">
-
-            <thead>
-
-                <tr>
-
-                    <th style="width:90px;">Дата</th>
-
-                    <th>Заказ</th>
-
-                    <th style="width:120px;">Конструктор</th>
-
-                    <th style="width:100px;">Этап</th>
-
-                    <th>Комментарий</th>
-
-                </tr>
-
-            </thead>
-
-            <tbody id="content">
-
-            </tbody>
-
-        </table>
-
-    </div>
+    </main>
 
 </div>
