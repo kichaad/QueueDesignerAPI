@@ -79,37 +79,262 @@
       <div class="auto-save">💾 Данные сохраняются автоматически</div>
     </div>
   </div>
-  <div class="app-container">
-    <div class="stats-grid">
-      <div class="stat-card"><div class="stat-header"><span class="stat-icon">👩‍💼</span><span>Ирина</span></div><div class="stat-badges"><span class="badge badge-total">📦 8</span><span class="badge badge-tz">ТЗ 0</span><span class="badge badge-proforma">📐 Проформа 2</span><span class="badge badge-kd">КД 6</span></div></div>
-      <div class="stat-card"><div class="stat-header"><span class="stat-icon">👩‍💼</span><span>София</span></div><div class="stat-badges"><span class="badge badge-total">📦 11</span><span class="badge badge-tz">ТЗ 7</span><span class="badge badge-proforma">📐 Проформа 2</span><span class="badge badge-kd">КД 2</span></div></div>
-      <div class="stat-card"><div class="stat-header"><span class="stat-icon">🛠️</span><span>Ирина</span></div><div class="stat-badges"><span class="badge badge-total">📦 8</span><span class="badge badge-tz">ТЗ 4</span><span class="badge badge-proforma">📐 Проформа 0</span><span class="badge badge-kd">КД 4</span></div></div>
-      <div class="stat-card"><div class="stat-header"><span class="stat-icon">🛠️</span><span>Валентина</span></div><div class="stat-badges"><span class="badge badge-total">📦 11</span><span class="badge badge-tz">ТЗ 3</span><span class="badge badge-proforma">📐 Проформа 4</span><span class="badge badge-kd">КД 4</span></div></div>
-    </div>
-    <div class="table-section" id="managersTable">
-      <div class="table-header"><div class="table-title">👩‍💼 Заказы по менеджерам</div></div>
-      <table class="orders-table"><thead><tr><th># Дата</th><th>Заказ</th><th>Менеджер</th><th>Стадия</th><th>Заметки</th></tr></thead><tbody>
-        <tr><td><div class="order-date">15.01</div><div class="order-day">Пн</div></td><td class="order-name">Шкаф распашной</td><td class="person-name">Ирина</td><td class="stage-cell"><div class="stage-buttons"><button class="stage-btn stage-sergey" onclick="setStage(this)">У Сергея</button><button class="stage-btn stage-manager active" onclick="setStage(this)">У менеджера</button><button class="stage-btn stage-client" onclick="setStage(this)">У клиента</button><button class="stage-btn stage-constructor" onclick="setStage(this)">У конструктора</button><button class="stage-btn stage-workshop" onclick="setStage(this)">В цеху</button></div></td><td class="order-notes">Ждем утверждения</td></tr>
-        <tr><td><div class="order-date">16.01</div><div class="order-day">Вт</div></td><td class="order-name">Комод пеленальный</td><td class="person-name">Ирина</td><td class="stage-cell"><div class="stage-buttons"><button class="stage-btn stage-sergey" onclick="setStage(this)">У Сергея</button><button class="stage-btn stage-manager" onclick="setStage(this)">У менеджера</button><button class="stage-btn stage-client active" onclick="setStage(this)">У клиента</button><button class="stage-btn stage-constructor" onclick="setStage(this)">У конструктора</button><button class="stage-btn stage-workshop" onclick="setStage(this)">В цеху</button></div></td><td class="order-notes">—</td></tr>
-        <tr><td><div class="order-date">17.01</div><div class="order-day">Ср</div></td><td class="order-name">Стол письменный</td><td class="person-name">София</td><td class="stage-cell"><div class="stage-buttons"><button class="stage-btn stage-sergey active" onclick="setStage(this)">У Сергея</button><button class="stage-btn stage-manager" onclick="setStage(this)">У менеджера</button><button class="stage-btn stage-client" onclick="setStage(this)">У клиента</button><button class="stage-btn stage-constructor" onclick="setStage(this)">У конструктора</button><button class="stage-btn stage-workshop" onclick="setStage(this)">В цеху</button></div></td><td class="order-notes">Согласование</td></tr>
-      </tbody></table>
-      <div class="notes-block"><span class="notes-icon">⚠️</span><div class="notes-text"><strong>2 заказа ждут подписи клиента</strong>.</div></div>
-    </div>
-    <div class="table-section" id="constructorsTable" style="display:none">
-      <div class="table-header"><div class="table-title">🛠️ Заказы по конструкторам</div></div>
-      <table class="orders-table"><thead><tr><th># Дата</th><th>Заказ</th><th>Конструктор</th><th>Стадия</th><th>Заметки</th></tr></thead><tbody>
-        <tr><td><div class="order-date">15.01</div><div class="order-day">Пн</div></td><td class="order-name">Шкаф распашной</td><td class="person-name">Ирина</td><td class="stage-cell"><div class="stage-buttons"><button class="stage-btn stage-sergey" onclick="setStage(this)">У Сергея</button><button class="stage-btn stage-manager" onclick="setStage(this)">У менеджера</button><button class="stage-btn stage-client" onclick="setStage(this)">У клиента</button><button class="stage-btn stage-constructor active" onclick="setStage(this)">У конструктора</button><button class="stage-btn stage-workshop" onclick="setStage(this)">В цеху</button></div></td><td class="order-notes">Разработка КД</td></tr>
-        <tr><td><div class="order-date">16.01</div><div class="order-day">Вт</div></td><td class="order-name">Комод</td><td class="person-name">Валентина</td><td class="stage-cell"><div class="stage-buttons"><button class="stage-btn stage-sergey" onclick="setStage(this)">У Сергея</button><button class="stage-btn stage-manager active" onclick="setStage(this)">У менеджера</button><button class="stage-btn stage-client" onclick="setStage(this)">У клиента</button><button class="stage-btn stage-constructor" onclick="setStage(this)">У конструктора</button><button class="stage-btn stage-workshop" onclick="setStage(this)">В цеху</button></div></td><td class="order-notes">Проверка ТЗ</td></tr>
-      </tbody></table>
-      <div class="notes-block"><span class="notes-icon">⚠️</span><div class="notes-text"><strong>3 заказа на стадии КД</strong>.</div></div>
-    </div>
-  </div>
+  
   <script>
-    function setCurrentDate(){document.getElementById('currentDate').textContent=new Date().toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric',weekday:'long'});}
-    function setStage(btn){btn.parentElement.querySelectorAll('.stage-btn').forEach(function(b){b.classList.remove('active')});btn.classList.add('active');}
-    function resetAllStages(){document.querySelectorAll('.stage-btn').forEach(function(b){b.classList.remove('active');if(b.textContent.indexOf('менеджера')>-1||b.textContent.indexOf('конструктора')>-1)b.classList.add('active');});}
-    function filterBy(view){document.getElementById('managersTable').style.display=view==='managers'?'block':'none';document.getElementById('constructorsTable').style.display=view==='constructors'?'block':'none';document.querySelectorAll('.filter-btn').forEach(function(b){b.classList.remove('active')});event.target.classList.add('active');}
-    document.addEventListener('DOMContentLoaded',setCurrentDate);
+    // === ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ===
+    let APP_DATA = [];
+    let currentFilter = 'all';
+
+    const STAGES = [
+      { id: 'sergey', label: 'У Сергея', class: 'stage-sergey' },
+      { id: 'manager', label: 'У менеджера', class: 'stage-manager' },
+      { id: 'client', label: 'У клиента', class: 'stage-client' },
+      { id: 'designer', label: 'У конструктора', class: 'stage-constructor' },
+      { id: 'workshop', label: 'В цеху', class: 'stage-workshop' }
+    ];
+
+    // === ИНИЦИАЛИЗАЦИЯ ===
+    window.addEventListener('DOMContentLoaded', () => {
+      setCurrentDate();
+      loadRealData();
+    });
+
+    function setCurrentDate() {
+      const now = new Date();
+      const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+      document.getElementById('currentDate').textContent = now.toLocaleDateString('ru-RU', options);
+    }
+
+    // === ЗАГРУЗКА ДАННЫХ С СЕРВЕРА ===
+    function loadRealData() {
+      document.getElementById('orderCount').textContent = 'Загрузка...';
+      
+      google.script.run
+        .withSuccessHandler(onDataLoaded)
+        .withFailureHandler(onDataError)
+        .getOrders();
+    }
+
+    function onDataLoaded(data) {
+      console.log('Данные загружены:', data);
+      APP_DATA = normalizeData(data || []);
+      
+      updateOrderCount(APP_DATA.length);
+      renderStats(APP_DATA);
+      renderTables(APP_DATA);
+    }
+
+    function onDataError(error) {
+      console.error('Ошибка загрузки:', error);
+      document.getElementById('orderCount').textContent = 'Ошибка';
+      alert('Не удалось загрузить данные: ' + error.message);
+    }
+
+    // Нормализация данных из таблицы
+    function normalizeData(rawData) {
+      return rawData.map((item, index) => ({
+        id: item.id || index + 1,
+        date: item.date || formatDate(item.startDate),
+        day: item.day || getWeekday(item.startDate),
+        order: item.order || item.product || 'Без названия',
+        person: item.person || item.manager || item.constructorName || 'Не указан',
+        role: detectRole(item),
+        stage: item.stage || 'manager',
+        notes: item.notes || item.comment || ''
+      }));
+    }
+
+    function detectRole(item) {
+      const person = (item.person || item.manager || item.constructorName || '').toLowerCase();
+      if (person.includes('мен') || item.role === 'manager') return 'manager';
+      return 'designer';
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return '';
+      const d = new Date(dateStr);
+      if (isNaN(d)) return dateStr;
+      return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+    }
+
+    function getWeekday(dateStr) {
+      if (!dateStr) return '';
+      const d = new Date(dateStr);
+      if (isNaN(d)) return '';
+      return d.toLocaleDateString('ru-RU', { weekday: 'short' });
+    }
+
+    function updateOrderCount(count) {
+      document.getElementById('orderCount').textContent = `Всего заказов: ${count}`;
+    }
+
+    // === РАСЧЕТ СТАТИСТИКИ ===
+    function calculateStats(data) {
+      const stats = {};
+      
+      data.forEach(item => {
+        const name = item.person;
+        if (!stats[name]) {
+          stats[name] = { total: 0, tz: 0, proforma: 0, kd: 0, isManager: item.role === 'manager' };
+        }
+        
+        stats[name].total++;
+        
+        if (item.stage === 'sergey' || item.stage === 'manager') stats[name].tz++;
+        else if (item.stage === 'client') stats[name].proforma++;
+        else if (item.stage === 'designer' || item.stage === 'workshop') stats[name].kd++;
+      });
+
+      return stats;
+    }
+
+    function renderStats(data) {
+      const stats = calculateStats(data);
+      const container = document.querySelector('.stats-grid');
+      container.innerHTML = '';
+
+      Object.keys(stats).forEach(name => {
+        const s = stats[name];
+        const icon = s.isManager ? '👩‍💼' : '🛠️';
+        const color = s.isManager ? '#667eea' : '#7b1fa2';
+
+        const card = document.createElement('div');
+        card.className = 'stat-card';
+        card.innerHTML = `
+          <div class="stat-header">
+            <span class="stat-icon">${icon}</span>
+            <span>${name.replace(' (Мен)', '').replace(' (Кон)', '')}</span>
+          </div>
+          <div class="stat-badges">
+            <span class="badge badge-total">📦 ${s.total}</span>
+            <span class="badge badge-tz">ТЗ ${s.tz}</span>
+            <span class="badge badge-proforma">📐 ${s.proforma}</span>
+            <span class="badge badge-kd">КД ${s.kd}</span>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // === ОТРИСОВКА ТАБЛИЦ ===
+    function renderTables(data) {
+      const managersTable = document.getElementById('managersTable');
+      const constructorsTable = document.getElementById('constructorsTable');
+
+      if (!data || data.length === 0) {
+        managersTable.querySelector('tbody').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;">Заказов не найдено</td></tr>';
+        constructorsTable.querySelector('tbody').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;">Заказов не найдено</td></tr>';
+        return;
+      }
+
+      const managers = data.filter(i => i.role === 'manager');
+      const designers = data.filter(i => i.role === 'designer');
+
+      renderTableBody(managersTable, 'managers', managers);
+      renderTableBody(constructorsTable, 'designers', designers);
+    }
+
+    function renderTableBody(tableElement, type, rows) {
+      const tbody = tableElement.querySelector('tbody');
+      
+      if (!rows || rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#666;">Нет заказов</td></tr>';
+        tableElement.querySelector('.notes-block').style.display = 'none';
+        return;
+      }
+
+      tableElement.querySelector('.notes-block').style.display = 'flex';
+
+      const urgentNotes = rows.filter(r => r.notes && (r.notes.toLowerCase().includes('ждут') || r.names.toLowerCase().includes('срочно')));
+      const notesText = urgentNotes.length > 0 
+        ? `<strong>${urgentNotes.length} заказ(а):</strong> ${urgentNotes.map(n => n.notes).join('; ')}`
+        : getSummaryNote(type, rows.length);
+
+      tableElement.querySelector('.notes-text').innerHTML = notesText;
+
+      tbody.innerHTML = rows.map(row => `
+        <tr>
+          <td>
+            <div class="order-date">${row.date || '-'}</div>
+            <div class="order-day">${row.day || ''}</div>
+          </td>
+          <td class="order-name">${row.order}</td>
+          <td class="person-name">${row.person}</td>
+          <td class="stage-cell">
+            <div class="stage-buttons">
+              ${STAGES.map(s => `
+                <button class="stage-btn ${s.class} ${row.stage === s.id ? 'active' : ''}" 
+                        onclick="setStage(this, ${row.id}, '${s.id}')">
+                  ${s.label}
+                </button>
+              `).join('')}
+            </div>
+          </td>
+          <td class="order-notes">${row.notes || '—'}</td>
+        </tr>
+      `).join('');
+    }
+
+    function getSummaryNote(type, count) {
+      if (type === 'managers') {
+        return `<strong>${count} заказ(ов)</strong> у менеджеров`;
+      } else {
+        return `<strong>${count} заказ(ов)</strong> в работе у конструкторов`;
+      }
+    }
+
+    // === ОБРАБОТЧИКИ СОБЫТИЙ ===
+
+    function setStage(btn, orderId, newStage) {
+      btn.parentElement.querySelectorAll('.stage-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const item = APP_DATA.find(i => i.id === orderId);
+      if (item) {
+        item.stage = newStage;
+        
+        google.script.run
+          .withSuccessHandler(() => {
+            console.log(`Стадия обновлена: Заказ ${orderId} -> ${newStage}`);
+            const filteredData = currentFilter === 'all' ? APP_DATA : 
+                                 currentFilter === 'managers' ? APP_DATA.filter(i => i.role === 'manager') :
+                                 APP_DATA.filter(i => i.role === 'designer');
+            renderStats(filteredData);
+          })
+          .withFailureHandler((err) => {
+            alert('Ошибка сохранения: ' + err);
+          })
+          .saveStage(orderId, newStage);
+      }
+    }
+
+    function filterBy(view) {
+      currentFilter = view;
+      
+      document.getElementById('managersTable').style.display = view === 'managers' || view === 'all' ? 'block' : 'none';
+      document.getElementById('constructorsTable').style.display = view === 'constructors' || view === 'all' ? 'block' : 'none';
+      
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+
+      const filteredData = view === 'all' ? APP_DATA : 
+                           view === 'managers' ? APP_DATA.filter(i => i.role === 'manager') :
+                           APP_DATA.filter(i => i.role === 'designer');
+      
+      renderStats(filteredData);
+      updateOrderCount(filteredData.length);
+    }
+
+    function resetAllStages() {
+      if (confirm('Сбросить все стадии по умолчанию?')) {
+        document.querySelectorAll('.stage-btn').forEach(btn => {
+          btn.classList.remove('active');
+          if (btn.textContent.includes('менеджера') || btn.textContent.includes('конструктора')) {
+            btn.classList.add('active');
+          }
+        });
+      }
+    }
   </script>
 </body>
 </html>
