@@ -28,6 +28,34 @@ function testOrders() {
 function getOrders() {
   return OrderService.getOrders();
 }
+
+/**
+ * Сохраняет стадию заказа
+ */
+function saveStage(contract, newStage) {
+  const sheet = SheetService.getSheet(CONFIG.SHEETS.ORDERS);
+  const data = sheet.getDataRange().getValues();
+  
+  if (data.length < 2) return false;
+  
+  const headers = data[0];
+  const contractIndex = headers.indexOf('Договор');
+  const stageIndex = headers.indexOf('Этап');
+  
+  if (contractIndex === -1 || stageIndex === -1) {
+    throw new Error('Не найдены колонки "Договор" или "Этап"');
+  }
+  
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][contractIndex] == contract) {
+      sheet.getRange(i + 1, stageIndex + 1).setValue(newStage);
+      return true;
+    }
+  }
+  
+  throw new Error('Заказ с договором ' + contract + ' не найден');
+}
+
 /**
  * Подключение HTML-фрагментов в шаблон Index.html
  */
