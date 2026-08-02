@@ -1,34 +1,115 @@
 <!DOCTYPE html>
 <html>
-
 <head>
   <base target="_top">
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-
-  <title>Очередь конструкторов</title>
-
-  <?!= include('Styles'); ?>
-
+  <title>Orders</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:sans-serif;background:#f0f2f5;color:#333;line-height:1.6}
+    .header{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
+    .header-left{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+    .header-title{font-size:24px;font-weight:700}
+    .filter-buttons{display:flex;gap:10px}
+    .filter-btn{background:rgba(255,255,255,.2);border:none;color:#fff;padding:8px 16px;border-radius:20px;cursor:pointer;font-size:14px;transition:all .3s}
+    .filter-btn:hover{background:rgba(255,255,255,.35);transform:translateY(-2px)}
+    .filter-btn.active{background:#fff;color:#667eea}
+    .header-right{display:flex;align-items:center;gap:20px}
+    .current-date{font-size:14px;opacity:.9}
+    .order-count{background:rgba(255,255,255,.2);padding:6px 14px;border-radius:20px}
+    .auto-save{background:rgba(76,175,80,.3);padding:6px 14px;border-radius:20px;font-size:13px;display:flex;align-items:center;gap:6px}
+    .app-container{max-width:1400px;margin:0 auto;padding:24px}
+    .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:24px}
+    .stat-card{background:#fff;border-radius:16px;padding:20px;box-shadow:0 2px 12px rgba(0,0,0,.08);transition:transform .3s,box-shadow .3s}
+    .stat-card:hover{transform:translateY(-4px);box-shadow:0 8px 24px rgba(0,0,0,.12)}
+    .stat-header{display:flex;align-items:center;gap:10px;margin-bottom:16px;font-size:18px;font-weight:600}
+    .stat-icon{font-size:24px}
+    .stat-badges{display:flex;gap:8px;flex-wrap:wrap}
+    .badge{padding:6px 12px;border-radius:12px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px}
+    .badge-total{background:#e3f2fd;color:#1976d2}
+    .badge-tz{background:#fff3e0;color:#f57c00}
+    .badge-proforma{background:#f3e5f5;color:#7b1fa2}
+    .badge-kd{background:#e8f5e9;color:#388e3c}
+    .table-section{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.08);margin-bottom:24px}
+    .table-header{background:#f8f9fa;padding:16px 20px;border-bottom:2px solid #e9ecef}
+    .table-title{font-size:18px;font-weight:600;color:#495057}
+    .orders-table{width:100%;border-collapse:collapse}
+    .orders-table th{background:#f8f9fa;text-align:left;padding:14px 16px;font-size:13px;font-weight:600;color:#6c757d;text-transform:uppercase;border-bottom:2px solid #dee2e6}
+    .orders-table td{padding:16px;border-bottom:1px solid #e9ecef;vertical-align:middle}
+    .orders-table tr:last-child td{border-bottom:none}
+    .orders-table tr:hover{background:#f8f9fa}
+    .order-date{font-weight:600;color:#495057}
+    .order-day{font-size:12px;color:#6c757d;margin-top:4px}
+    .order-name{font-weight:500;color:#212529}
+    .person-name{font-weight:500;color:#495057}
+    .stage-cell{min-width:280px}
+    .stage-buttons{display:flex;gap:6px;flex-wrap:wrap}
+    .stage-btn{padding:6px 12px;border:none;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;white-space:nowrap}
+    .stage-btn:hover{transform:scale(1.05)}
+    .stage-sergey{background:#e0e0e0;color:#424242}
+    .stage-sergey.active{background:#9e9e9e;color:#fff}
+    .stage-manager{background:#bbdefb;color:#1565c0}
+    .stage-manager.active{background:#1976d2;color:#fff}
+    .stage-client{background:#ffe0b2;color:#e65100}
+    .stage-client.active{background:#ff9800;color:#fff}
+    .stage-constructor{background:#e1bee7;color:#6a1b9a}
+    .stage-constructor.active{background:#8e24aa;color:#fff}
+    .stage-workshop{background:#c8e6c9;color:#2e7d32}
+    .stage-workshop.active{background:#4caf50;color:#fff}
+    .order-notes{font-size:13px;color:#6c757d;max-width:200px}
+    .notes-block{background:#fff8e1;border-left:4px solid #ffc107;padding:16px 20px;margin-top:16px;border-radius:0 12px 12px 0;display:flex;align-items:flex-start;gap:12px}
+    .notes-icon{font-size:20px}
+    .notes-text{font-size:14px;color:#5d4037;line-height:1.5}
+    .notes-text strong{color:#e65100}
+  </style>
 </head>
-
 <body>
-
-  <?!= include('Layout'); ?>
-
-  <?!= include('EventBus'); ?>
-  <?!= include('Store'); ?>
-  <?!= include('ApiClient'); ?>
-
-  <?!= include('OrderCard'); ?>
-  <?!= include('QueueView'); ?>
-  <?!= include('QueueController'); ?>
-
-  <?!= include('Router'); ?>
-  <?!= include('Application'); ?>
-
-  <?!= include('Scripts'); ?>
-
+  <div class="header">
+    <div class="header-left">
+      <div class="header-title">📋 Сводка заказов</div>
+      <div class="filter-buttons">
+        <button class="filter-btn" onclick="resetAllStages()">↺ Сбросить все стадии</button>
+        <button class="filter-btn active" onclick="filterBy('managers')">👩‍💼 По менеджерам</button>
+        <button class="filter-btn" onclick="filterBy('constructors')">🛠️ По конструкторам</button>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="current-date" id="currentDate"></div>
+      <div class="order-count">Всего заказов: <strong>19</strong></div>
+      <div class="auto-save">💾 Данные сохраняются автоматически</div>
+    </div>
+  </div>
+  <div class="app-container">
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-header"><span class="stat-icon">👩‍💼</span><span>Ирина</span></div><div class="stat-badges"><span class="badge badge-total">📦 8</span><span class="badge badge-tz">ТЗ 0</span><span class="badge badge-proforma">📐 Проформа 2</span><span class="badge badge-kd">КД 6</span></div></div>
+      <div class="stat-card"><div class="stat-header"><span class="stat-icon">👩‍💼</span><span>София</span></div><div class="stat-badges"><span class="badge badge-total">📦 11</span><span class="badge badge-tz">ТЗ 7</span><span class="badge badge-proforma">📐 Проформа 2</span><span class="badge badge-kd">КД 2</span></div></div>
+      <div class="stat-card"><div class="stat-header"><span class="stat-icon">🛠️</span><span>Ирина</span></div><div class="stat-badges"><span class="badge badge-total">📦 8</span><span class="badge badge-tz">ТЗ 4</span><span class="badge badge-proforma">📐 Проформа 0</span><span class="badge badge-kd">КД 4</span></div></div>
+      <div class="stat-card"><div class="stat-header"><span class="stat-icon">🛠️</span><span>Валентина</span></div><div class="stat-badges"><span class="badge badge-total">📦 11</span><span class="badge badge-tz">ТЗ 3</span><span class="badge badge-proforma">📐 Проформа 4</span><span class="badge badge-kd">КД 4</span></div></div>
+    </div>
+    <div class="table-section" id="managersTable">
+      <div class="table-header"><div class="table-title">👩‍💼 Заказы по менеджерам</div></div>
+      <table class="orders-table"><thead><tr><th># Дата</th><th>Заказ</th><th>Менеджер</th><th>Стадия</th><th>Заметки</th></tr></thead><tbody>
+        <tr><td><div class="order-date">15.01</div><div class="order-day">Пн</div></td><td class="order-name">Шкаф распашной</td><td class="person-name">Ирина</td><td class="stage-cell"><div class="stage-buttons"><button class="stage-btn stage-sergey" onclick="setStage(this)">У Сергея</button><button class="stage-btn stage-manager active" onclick="setStage(this)">У менеджера</button><button class="stage-btn stage-client" onclick="setStage(this)">У клиента</button><button class="stage-btn stage-constructor" onclick="setStage(this)">У конструктора</button><button class="stage-btn stage-workshop" onclick="setStage(this)">В цеху</button></div></td><td class="order-notes">Ждем утверждения</td></tr>
+        <tr><td><div class="order-date">16.01</div><div class="order-day">Вт</div></td><td class="order-name">Комод пеленальный</td><td class="person-name">Ирина</td><td class="stage-cell"><div class="stage-buttons"><button class="stage-btn stage-sergey" onclick="setStage(this)">У Сергея</button><button class="stage-btn stage-manager" onclick="setStage(this)">У менеджера</button><button class="stage-btn stage-client active" onclick="setStage(this)">У клиента</button><button class="stage-btn stage-constructor" onclick="setStage(this)">У конструктора</button><button class="stage-btn stage-workshop" onclick="setStage(this)">В цеху</button></div></td><td class="order-notes">—</td></tr>
+        <tr><td><div class="order-date">17.01</div><div class="order-day">Ср</div></td><td class="order-name">Стол письменный</td><td class="person-name">София</td><td class="stage-cell"><div class="stage-buttons"><button class="stage-btn stage-sergey active" onclick="setStage(this)">У Сергея</button><button class="stage-btn stage-manager" onclick="setStage(this)">У менеджера</button><button class="stage-btn stage-client" onclick="setStage(this)">У клиента</button><button class="stage-btn stage-constructor" onclick="setStage(this)">У конструктора</button><button class="stage-btn stage-workshop" onclick="setStage(this)">В цеху</button></div></td><td class="order-notes">Согласование</td></tr>
+      </tbody></table>
+      <div class="notes-block"><span class="notes-icon">⚠️</span><div class="notes-text"><strong>2 заказа ждут подписи клиента</strong>.</div></div>
+    </div>
+    <div class="table-section" id="constructorsTable" style="display:none">
+      <div class="table-header"><div class="table-title">🛠️ Заказы по конструкторам</div></div>
+      <table class="orders-table"><thead><tr><th># Дата</th><th>Заказ</th><th>Конструктор</th><th>Стадия</th><th>Заметки</th></tr></thead><tbody>
+        <tr><td><div class="order-date">15.01</div><div class="order-day">Пн</div></td><td class="order-name">Шкаф распашной</td><td class="person-name">Ирина</td><td class="stage-cell"><div class="stage-buttons"><button class="stage-btn stage-sergey" onclick="setStage(this)">У Сергея</button><button class="stage-btn stage-manager" onclick="setStage(this)">У менеджера</button><button class="stage-btn stage-client" onclick="setStage(this)">У клиента</button><button class="stage-btn stage-constructor active" onclick="setStage(this)">У конструктора</button><button class="stage-btn stage-workshop" onclick="setStage(this)">В цеху</button></div></td><td class="order-notes">Разработка КД</td></tr>
+        <tr><td><div class="order-date">16.01</div><div class="order-day">Вт</div></td><td class="order-name">Комод</td><td class="person-name">Валентина</td><td class="stage-cell"><div class="stage-buttons"><button class="stage-btn stage-sergey" onclick="setStage(this)">У Сергея</button><button class="stage-btn stage-manager active" onclick="setStage(this)">У менеджера</button><button class="stage-btn stage-client" onclick="setStage(this)">У клиента</button><button class="stage-btn stage-constructor" onclick="setStage(this)">У конструктора</button><button class="stage-btn stage-workshop" onclick="setStage(this)">В цеху</button></div></td><td class="order-notes">Проверка ТЗ</td></tr>
+      </tbody></table>
+      <div class="notes-block"><span class="notes-icon">⚠️</span><div class="notes-text"><strong>3 заказа на стадии КД</strong>.</div></div>
+    </div>
+  </div>
+  <script>
+    function setCurrentDate(){document.getElementById('currentDate').textContent=new Date().toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric',weekday:'long'});}
+    function setStage(btn){btn.parentElement.querySelectorAll('.stage-btn').forEach(function(b){b.classList.remove('active')});btn.classList.add('active');}
+    function resetAllStages(){document.querySelectorAll('.stage-btn').forEach(function(b){b.classList.remove('active');if(b.textContent.indexOf('менеджера')>-1||b.textContent.indexOf('конструктора')>-1)b.classList.add('active');});}
+    function filterBy(view){document.getElementById('managersTable').style.display=view==='managers'?'block':'none';document.getElementById('constructorsTable').style.display=view==='constructors'?'block':'none';document.querySelectorAll('.filter-btn').forEach(function(b){b.classList.remove('active')});event.target.classList.add('active');}
+    document.addEventListener('DOMContentLoaded',setCurrentDate);
+  </script>
 </body>
-
 </html>
