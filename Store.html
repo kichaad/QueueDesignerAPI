@@ -1,0 +1,53 @@
+<script>
+
+class Store {
+
+    static state = {
+
+        orders: [],
+
+        ui: {
+
+            loading: false
+
+        }
+
+    };
+
+    static loadOrders() {
+
+        this.state.ui.loading = true;
+
+        ApiClient.getOrders(
+
+            (data)=>{
+
+                this.state.orders = data;
+
+                this.state.ui.loading = false;
+
+                EventBus.emit(
+                    "ordersChanged",
+                    this.state.orders
+                );
+
+            },
+
+            (error)=>{
+
+                this.state.ui.loading = false;
+
+                EventBus.emit(
+                    "error",
+                    error
+                );
+
+            }
+
+        );
+
+    }
+
+}
+
+</script>

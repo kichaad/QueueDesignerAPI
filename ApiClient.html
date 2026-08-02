@@ -1,0 +1,19 @@
+<script>
+
+class ApiClient{
+
+    static getOrders(success,error){
+
+        google.script.run
+
+            .withSuccessHandler(success)
+
+            .withFailureHandler(error)
+
+            .getOrders();
+
+    }
+
+}
+
+</script>

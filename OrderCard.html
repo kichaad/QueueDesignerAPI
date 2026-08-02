@@ -1,0 +1,47 @@
+<script>
+
+class OrderCard {
+
+    static render(order){
+
+        return `
+
+            <tr>
+
+                <td class="date-cell">
+
+                    <div class="weekday">
+                        ${order.weekday}
+                    </div>
+
+                    <div class="date">
+                        ${order.startDate}
+                    </div>
+
+                </td>
+
+                <td class="order-cell">
+                    ${order.displayName}
+                </td>
+
+                <td>
+                    ${order.constructor}
+                </td>
+
+                <td>
+                    ${order.stage}
+                </td>
+
+                <td>
+                    ${order.comment || ""}
+                </td>
+
+            </tr>
+
+        `;
+
+    }
+
+}
+
+</script>

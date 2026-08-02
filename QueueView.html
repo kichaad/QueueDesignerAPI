@@ -1,0 +1,42 @@
+<script>
+
+class QueueView{
+
+    static init(){
+
+        EventBus.on("ordersChanged",(orders)=>{
+
+            this.render(orders);
+
+        });
+
+        EventBus.on("error",(error)=>{
+
+            document.getElementById("content").innerHTML=
+
+                `<div class="error">
+                    <b>Ошибка</b><br>
+                    ${error}
+                </div>`;
+
+        });
+
+    }
+
+    static render(orders){
+
+        let html="";
+
+        orders.forEach(order=>{
+
+            html+=OrderCard.render(order);
+
+        });
+
+        document.getElementById("content").innerHTML=html;
+
+    }
+
+}
+
+</script>
