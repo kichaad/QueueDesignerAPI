@@ -3,412 +3,272 @@
 <head>
   <base target="_top">
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Сводка заказов</title>
-  
-  <!-- Подключаем основные стили (если есть отдельный файл Styles.html) -->
-  <?!= include('Styles'); ?>
-
   <style>
-    /* === ДОПОЛНИТЕЛЬНЫЕ СТИЛИ ДЛЯ НОВОГО ИНТЕРФЕЙСА === */
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:sans-serif;background:#f0f2f5;color:#333;line-height:1.6}
+    .header{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
+    .header-left{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+    .header-title{font-size:24px;font-weight:700}
+    .filter-buttons{display:flex;gap:10px}
+    .filter-btn{background:rgba(255,255,255,.2);border:none;color:#fff;padding:8px 16px;border-radius:20px;cursor:pointer;font-size:14px;transition:all .3s}
+    .filter-btn:hover{background:rgba(255,255,255,.35);transform:translateY(-2px)}
+    .filter-btn.active{background:#fff;color:#667eea}
+    .header-right{display:flex;align-items:center;gap:20px}
+    .current-date{font-size:14px;opacity:.9}
+    .order-count{background:rgba(255,255,255,.2);padding:6px 14px;border-radius:20px}
+    .auto-save{background:rgba(76,175,80,.3);padding:6px 14px;border-radius:20px;font-size:13px;display:flex;align-items:center;gap:6px}
+    .app-container{max-width:1400px;margin:0 auto;padding:24px}
     
-    :root {
-      --primary-color: #5C6BC0;
-      --bg-color: #f4f6f8;
-      --card-bg: #ffffff;
-      --text-main: #333;
-      --text-secondary: #666;
-      
-      /* Цвета стадий */
-      --stage-sergey: #9e9e9e;       /* Серый */
-      --stage-manager: #2196f3;      /* Синий */
-      --stage-client: #ff9800;       /* Оранжевый */
-      --stage-designer: #9c27b0;     /* Фиолетовый */
-      --stage-workshop: #4caf50;     /* Зеленый */
-    }
+    /* Stats Grid */
+    .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:24px}
+    .stat-card{background:#fff;border-radius:16px;padding:20px;box-shadow:0 2px 12px rgba(0,0,0,.08);transition:transform .3s,box-shadow .3s}
+    .stat-card:hover{transform:translateY(-4px);box-shadow:0 8px 24px rgba(0,0,0,.12)}
+    .stat-header{display:flex;align-items:center;gap:10px;margin-bottom:16px;font-size:18px;font-weight:600}
+    .stat-icon{font-size:24px}
+    .stat-badges{display:flex;gap:8px;flex-wrap:wrap}
+    .badge{padding:6px 12px;border-radius:12px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px}
+    .badge-total{background:#e3f2fd;color:#1976d2}
+    .badge-tz{background:#fff3e0;color:#f57c00}
+    .badge-proforma{background:#f3e5f5;color:#7b1fa2}
+    .badge-kd{background:#e8f5e9;color:#388e3c}
 
-    body {
-      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      background-color: var(--bg-color);
-      color: var(--text-main);
-      margin: 0;
-      padding: 0;
-    }
+    /* Tables */
+    .table-section{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.08);margin-bottom:24px}
+    .table-header{background:#f8f9fa;padding:16px 20px;border-bottom:2px solid #e9ecef;display:flex;justify-content:space-between;align-items:center}
+    .table-title{font-size:18px;font-weight:600;color:#495057}
+    .orders-table{width:100%;border-collapse:collapse}
+    .orders-table th{background:#f8f9fa;text-align:left;padding:14px 16px;font-size:13px;font-weight:600;color:#6c757d;text-transform:uppercase;border-bottom:2px solid #dee2e6}
+    .orders-table td{padding:16px;border-bottom:1px solid #e9ecef;vertical-align:middle}
+    .orders-table tr:last-child td{border-bottom:none}
+    .orders-table tr:hover{background:#f8f9fa}
+    
+    /* Columns */
+    .col-date{min-width:80px}
+    .order-date{font-weight:600;color:#495057}
+    .order-day{font-size:12px;color:#6c757d;margin-top:4px}
+    .col-contract{min-width:90px;font-family:monospace;font-weight:600;color:#555}
+    .col-client{min-width:150px;font-weight:500;color:#212529}
+    .col-product{min-width:200px;color:#555;font-size:14px}
+    .col-person{min-width:140px;font-weight:500;color:#495057}
+    .stage-cell{min-width:280px}
+    
+    /* Stage Buttons */
+    .stage-buttons{display:flex;gap:6px;flex-wrap:wrap}
+    .stage-btn{padding:6px 10px;border:none;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap;opacity:0.7}
+    .stage-btn:hover{opacity:1;transform:scale(1.05)}
+    .stage-btn.active{opacity:1;color:#fff;box-shadow:0 2px 4px rgba(0,0,0,0.2)}
+    
+    .stage-sergey{background:#e0e0e0;color:#424242}
+    .stage-sergey.active{background:#9e9e9e;}
+    .stage-manager{background:#bbdefb;color:#1565c0}
+    .stage-manager.active{background:#1976d2;}
+    .stage-client{background:#ffe0b2;color:#e65100}
+    .stage-client.active{background:#ff9800;}
+    .stage-constructor{background:#e1bee7;color:#6a1b9a}
+    .stage-constructor.active{background:#8e24aa;}
+    .stage-workshop{background:#c8e6c9;color:#2e7d32}
+    .stage-workshop.active{background:#4caf50;}
 
-    /* Шапка */
-    .app-header {
-      background: var(--card-bg);
-      padding: 20px 24px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      align-items: center;
-      gap: 15px;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
+    .col-notes{font-size:13px;color:#6c757d;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    
+    /* Notes Block */
+    .notes-block{background:#fff8e1;border-left:4px solid #ffc107;padding:16px 20px;margin-top:0;border-radius:0 0 12px 12px;display:flex;align-items:flex-start;gap:12px}
+    .notes-icon{font-size:20px}
+    .notes-text{font-size:14px;color:#5d4037;line-height:1.5}
+    .notes-text strong{color:#e65100}
 
-    .header-title h1 {
-      font-size: 24px;
-      margin: 0 0 5px 0;
-      color: var(--primary-color);
-    }
-
-    .header-meta {
-      font-size: 14px;
-      color: var(--text-secondary);
-      display: flex;
-      gap: 15px;
-      align-items: center;
-    }
-
-    .auto-save-badge {
-      background: #e8f5e9;
-      color: #2e7d32;
-      padding: 4px 8px;
-      border-radius: 12px;
-      font-size: 12px;
-      font-weight: 600;
-    }
-
-    .controls {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .btn-filter {
-      padding: 8px 16px;
-      border: 1px solid #ddd;
-      background: white;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 14px;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .btn-filter:hover {
-      background: #f5f5f5;
-      border-color: #bbb;
-    }
-
-    .btn-filter.active {
-      background: var(--primary-color);
-      color: white;
-      border-color: var(--primary-color);
-    }
-
-    /* Контейнер */
-    .container {
-      max-width: 1400px;
-      margin: 24px auto;
-      padding: 0 20px;
-    }
-
-    /* Карточки статистики */
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 20px;
-      margin-bottom: 30px;
-    }
-
-    .stat-card {
-      background: var(--card-bg);
-      border-radius: 12px;
-      padding: 20px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-      transition: transform 0.2s;
-    }
-
-    .stat-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-
-    .stat-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 15px;
-      font-size: 18px;
-      font-weight: 600;
-    }
-
-    .stat-badges {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    .badge {
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-size: 13px;
-      font-weight: 500;
-      background: #f0f2f5;
-      color: var(--text-secondary);
-    }
-
-    .badge strong {
-      color: var(--text-main);
-    }
-
-    /* Таблицы */
-    .table-section {
-      background: var(--card-bg);
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-      margin-bottom: 30px;
-    }
-
-    .section-header {
-      padding: 16px 24px;
-      border-bottom: 1px solid #eee;
-      background: #fafafa;
-      font-size: 18px;
-      font-weight: 600;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .queue-table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    .queue-table th {
-      text-align: left;
-      padding: 12px 24px;
-      background: #f8f9fa;
-      color: var(--text-secondary);
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      font-weight: 600;
-    }
-
-    .queue-table td {
-      padding: 16px 24px;
-      border-bottom: 1px solid #eee;
-      vertical-align: middle;
-      font-size: 14px;
-    }
-
-    .queue-table tr:last-child td {
-      border-bottom: none;
-    }
-
-    .queue-table tr:hover {
-      background-color: #f9fbfd;
-    }
-
-    .col-date { width: 120px; color: var(--text-secondary); }
-    .col-order { font-weight: 600; color: var(--text-main); }
-    .col-person { width: 150px; }
-    .col-stage { width: 320px; }
-    .col-notes { color: var(--text-secondary); font-style: italic; }
-
-    /* Кнопки стадий */
-    .stage-group {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-    }
-
-    .stage-btn {
-      padding: 6px 12px;
-      border: 1px solid transparent;
-      border-radius: 6px;
-      font-size: 12px;
-      cursor: pointer;
-      transition: all 0.2s;
-      background: #f0f0f0;
-      color: #555;
-      opacity: 0.7;
-    }
-
-    .stage-btn:hover {
-      opacity: 1;
-      transform: scale(1.02);
-    }
-
-    .stage-btn.active {
-      opacity: 1;
-      color: white;
-      font-weight: 600;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    }
-
-    /* Цвета активных стадий */
-    .stage-btn[data-stage="sergey"].active { background: var(--stage-sergey); }
-    .stage-btn[data-stage="manager"].active { background: var(--stage-manager); }
-    .stage-btn[data-stage="client"].active { background: var(--stage-client); }
-    .stage-btn[data-stage="designer"].active { background: var(--stage-designer); }
-    .stage-btn[data-stage="workshop"].active { background: var(--stage-workshop); }
-
-    /* Блок заметок */
-    .notes-block {
-      background: #fff3e0;
-      border-left: 4px solid #ff9800;
-      padding: 12px 24px;
-      margin: 0;
-      font-size: 14px;
-      color: #e65100;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    /* Адаптивность */
-    @media (max-width: 768px) {
-      .app-header { flex-direction: column; align-items: flex-start; }
-      .controls { width: 100%; justify-content: flex-start; }
-      .queue-table { font-size: 12px; }
-      .queue-table th, .queue-table td { padding: 10px; }
-      .stage-group { gap: 4px; }
-      .stage-btn { padding: 4px 8px; font-size: 11px; }
-    }
+    .loader{text-align:center;padding:40px;color:#666;font-size:18px}
+    .error-msg{color:#d32f2f;background:#ffebee;padding:20px;border-radius:8px;text-align:center;margin:20px}
   </style>
 </head>
 <body>
 
-  <!-- ШАПКА -->
-  <header class="app-header">
-    <div class="header-title">
-      <h1>📋 Сводка заказов</h1>
-      <div class="header-meta">
-        <span id="currentDate">Загрузка даты...</span>
-        <span id="totalOrders">Всего заказов: 0</span>
-        <span class="auto-save-badge">💾 Данные сохраняются автоматически</span>
+  <div class="header">
+    <div class="header-left">
+      <div class="header-title">📋 Сводка заказов</div>
+      <div class="filter-buttons">
+        <!-- Кнопка Обновить вместо Сбросить -->
+        <button class="filter-btn" onclick="loadRealData()">⟳ Обновить все стадии</button>
+        <button class="filter-btn active" onclick="filterBy('managers')" id="btn-managers">👩‍💼 По менеджерам</button>
+        <button class="filter-btn" onclick="filterBy('constructors')" id="btn-constructors">🛠️ По конструкторам</button>
       </div>
     </div>
+    <div class="header-right">
+      <div class="current-date" id="currentDate"></div>
+      <div class="order-count">Всего заказов: <strong id="countVal">0</strong></div>
+      <div class="auto-save">💾 Данные сохраняются автоматически</div>
+    </div>
+  </div>
+  
+  <div class="app-container">
+    <div id="loader" class="loader">Загрузка данных из таблицы...</div>
+    <div id="errorContainer"></div>
     
-    <div class="controls">
-      <button class="btn-filter active" onclick="filterData('all')" id="btn-all">↺ Сбросить все стадии</button>
-      <button class="btn-filter" onclick="filterData('manager')" id="btn-manager">‍💼 По менеджерам</button>
-      <button class="btn-filter" onclick="filterData('designer')" id="btn-designer">🛠️ По конструкторам</button>
-    </div>
-  </header>
+    <!-- Карточки статистики -->
+    <div class="stats-grid" id="statsContainer" style="display:none"></div>
 
-  <div class="container">
-    
-    <!-- КАРТОЧКИ СТАТИСТИКИ -->
-    <div class="stats-grid" id="statsContainer">
-      <!-- Заполняется через JS -->
+    <!-- Таблица Менеджеров -->
+    <div id="managersSection" class="table-section" style="display:none">
+      <div class="table-header">
+        <span class="table-title">Менеджеры</span>
+        <span style="font-size:14px;color:#666" id="mgrCount">0 заказов</span>
+      </div>
+      <table class="orders-table">
+        <thead>
+          <tr>
+            <th class="col-date">Дата</th>
+            <th class="col-contract">Договор</th>
+            <th>Клиент / Изделие</th>
+            <th class="col-person">Ответственный</th>
+            <th class="stage-cell">Стадия</th>
+            <th class="col-notes">Заметки</th>
+          </tr>
+        </thead>
+        <tbody id="managersBody"></tbody>
+      </table>
+      <div class="notes-block" id="mgrNotes">
+        <span class="notes-icon">⚠️</span>
+        <span class="notes-text"></span>
+      </div>
     </div>
 
-    <!-- ТАБЛИЦЫ ЗАКАЗОВ -->
-    <div id="tablesContainer">
-      <!-- Заполняется через JS -->
+    <!-- Таблица Конструкторов -->
+    <div id="constructorsSection" class="table-section" style="display:none">
+      <div class="table-header">
+        <span class="table-title">Конструкторы</span>
+        <span style="font-size:14px;color:#666" id="consCount">0 заказов</span>
+      </div>
+      <table class="orders-table">
+        <thead>
+          <tr>
+            <th class="col-date">Дата</th>
+            <th class="col-contract">Договор</th>
+            <th>Клиент / Изделие</th>
+            <th class="col-person">Ответственный</th>
+            <th class="stage-cell">Стадия</th>
+            <th class="col-notes">Заметки</th>
+          </tr>
+        </thead>
+        <tbody id="constructorsBody"></tbody>
+      </table>
+      <div class="notes-block" id="consNotes">
+        <span class="notes-icon">⚠️</span>
+        <span class="notes-text"></span>
+      </div>
     </div>
-
   </div>
 
   <script>
-    // === ДЕМО ДАННЫЕ (ЗАХАРДКОЖЕНЫ ДЛЯ ВИЗУАЛИЗАЦИИ) ===
-    const DEMO_DATA = [
-      // Менеджер Ирина (8 заказов: ТЗ:0, Проформа:2, КД:6)
-      { id: 1, date: '12.10', day: 'Пн', order: 'Шкаф-купе "Элит"', person: 'Ирина (Мен)', role: 'manager', stage: 'designer', notes: 'Срочно' },
-      { id: 2, date: '13.10', day: 'Вт', order: 'Кухня "Модерн"', person: 'Ирина (Мен)', role: 'manager', stage: 'manager', notes: '' },
-      { id: 3, date: '14.10', day: 'Ср', order: 'Прихожая №5', person: 'Ирина (Мен)', role: 'manager', stage: 'client', notes: 'Ждем подтверждения' },
-      { id: 4, date: '15.10', day: 'Чт', order: 'Офисный стол', person: 'Ирина (Мен)', role: 'manager', stage: 'workshop', notes: '' },
-      { id: 5, date: '16.10', day: 'Пт', order: 'Тумба ТВ', person: 'Ирина (Мен)', role: 'manager', stage: 'sergey', notes: '' },
-      { id: 6, date: '17.10', day: 'Сб', order: 'Стеллаж лофт', person: 'Ирина (Мен)', role: 'manager', stage: 'designer', notes: '' },
-      { id: 7, date: '18.10', day: 'Вс', order: 'Детская кровать', person: 'Ирина (Мен)', role: 'manager', stage: 'designer', notes: '' },
-      { id: 8, date: '19.10', day: 'Пн', order: 'Комод классика', person: 'Ирина (Мен)', role: 'manager', stage: 'manager', notes: '' },
-
-      // Менеджер София (11 заказов: ТЗ:7, Проформа:2, КД:2)
-      { id: 9, date: '12.10', day: 'Пн', order: 'Гардеробная №12', person: 'София (Мен)', role: 'manager', stage: 'sergey', notes: 'Важно!' },
-      { id: 10, date: '12.10', day: 'Пн', order: 'Кухня остров', person: 'София (Мен)', role: 'manager', stage: 'sergey', notes: '' },
-      { id: 11, date: '13.10', day: 'Вт', order: 'Ванная комната', person: 'София (Мен)', role: 'manager', stage: 'sergey', notes: '' },
-      { id: 12, date: '14.10', day: 'Ср', order: 'Шкаф в спальню', person: 'София (Мен)', role: 'manager', stage: 'sergey', notes: '' },
-      { id: 13, date: '15.10', day: 'Чт', order: 'Библиотека', person: 'София (Мен)', role: 'manager', stage: 'sergey', notes: '' },
-      { id: 14, date: '16.10', day: 'Пт', order: 'Барная стойка', person: 'София (Мен)', role: 'manager', stage: 'sergey', notes: '' },
-      { id: 15, date: '17.10', day: 'Сб', order: 'Тумба под раковину', person: 'София (Мен)', role: 'manager', stage: 'sergey', notes: '' },
-      { id: 16, date: '18.10', day: 'Вс', order: 'Антресоль', person: 'София (Мен)', role: 'manager', stage: 'manager', notes: '' },
-      { id: 17, date: '19.10', day: 'Пн', order: 'Полки навесные', person: 'София (Мен)', role: 'manager', stage: 'manager', notes: '' },
-      { id: 18, date: '20.10', day: 'Вт', order: 'Консоль прихожая', person: 'София (Мен)', role: 'manager', stage: 'designer', notes: '' },
-      { id: 19, date: '21.10', day: 'Ср', order: 'Зеркало в раме', person: 'София (Мен)', role: 'manager', stage: 'designer', notes: '' },
-
-      // Конструктор Ирина (8 заказов: ТЗ:4, Проформа:0, КД:4)
-      { id: 20, date: '12.10', day: 'Пн', order: 'Проект "Север"', person: 'Ирина (Кон)', role: 'designer', stage: 'sergey', notes: '' },
-      { id: 21, date: '13.10', day: 'Вт', order: 'Проект "Юг"', person: 'Ирина (Кон)', role: 'designer', stage: 'sergey', notes: '' },
-      { id: 22, date: '14.10', day: 'Ср', order: 'Проект "Запад"', person: 'Ирина (Кон)', role: 'designer', stage: 'sergey', notes: '' },
-      { id: 23, date: '15.10', day: 'Чт', order: 'Проект "Восток"', person: 'Ирина (Кон)', role: 'designer', stage: 'sergey', notes: '' },
-      { id: 24, date: '16.10', day: 'Пт', order: 'Ревизия чертежей А', person: 'Ирина (Кон)', role: 'designer', stage: 'designer', notes: '' },
-      { id: 25, date: '17.10', day: 'Сб', order: 'Ревизия чертежей Б', person: 'Ирина (Кон)', role: 'designer', stage: 'designer', notes: '' },
-      { id: 26, date: '18.10', day: 'Вс', order: 'Смета №45', person: 'Ирина (Кон)', role: 'designer', stage: 'designer', notes: '' },
-      { id: 27, date: '19.10', day: 'Пн', order: 'Смета №46', person: 'Ирина (Кон)', role: 'designer', stage: 'designer', notes: '' },
-
-      // Конструктор Валентина (11 заказов: ТЗ:3, Проформа:4, КД:4)
-      { id: 28, date: '12.10', day: 'Пн', order: 'КД Мебель 1', person: 'Валентина', role: 'designer', stage: 'client', notes: '2 заказа ждут подписи клиента' },
-      { id: 29, date: '12.10', day: 'Пн', order: 'КД Мебель 2', person: 'Валентина', role: 'designer', stage: 'client', notes: '' },
-      { id: 30, date: '13.10', day: 'Вт', order: 'Проформа цех 1', person: 'Валентина', role: 'designer', stage: 'workshop', notes: '' },
-      { id: 31, date: '14.10', day: 'Ср', order: 'Проформа цех 2', person: 'Валентина', role: 'designer', stage: 'workshop', notes: '' },
-      { id: 32, date: '15.10', day: 'Чт', order: 'Проформа цех 3', person: 'Валентина', role: 'designer', stage: 'workshop', notes: '' },
-      { id: 33, date: '16.10', day: 'Пт', order: 'Проформа цех 4', person: 'Валентина', role: 'designer', stage: 'workshop', notes: '' },
-      { id: 34, date: '17.10', day: 'Сб', order: 'ТЗ Новое 1', person: 'Валентина', role: 'designer', stage: 'manager', notes: '' },
-      { id: 35, date: '18.10', day: 'Вс', order: 'ТЗ Новое 2', person: 'Валентина', role: 'designer', stage: 'manager', notes: '' },
-      { id: 36, date: '19.10', day: 'Пн', order: 'ТЗ Новое 3', person: 'Валентина', role: 'designer', stage: 'manager', notes: '' },
-      { id: 37, date: '20.10', day: 'Вт', order: 'КД Сложное 1', person: 'Валентина', role: 'designer', stage: 'designer', notes: '' },
-      { id: 38, date: '21.10', day: 'Ср', order: 'КД Сложное 2', person: 'Валентина', role: 'designer', stage: 'designer', notes: '' }
-    ];
+    let APP_DATA = [];
+    let currentFilter = 'managers'; // По умолчанию менеджеры
 
     const STAGES = [
-      { id: 'sergey', label: 'У Сергея', color: 'var(--stage-sergey)' },
-      { id: 'manager', label: 'У менеджера', color: 'var(--stage-manager)' },
-      { id: 'client', label: 'У клиента', color: 'var(--stage-client)' },
-      { id: 'designer', label: 'У конструктора', color: 'var(--stage-designer)' },
-      { id: 'workshop', label: 'В цеху', color: 'var(--stage-workshop)' }
+      { id: 'sergey', label: 'У Сергея', class: 'stage-sergey' },
+      { id: 'manager', label: 'У менеджера', class: 'stage-manager' },
+      { id: 'client', label: 'У клиента', class: 'stage-client' },
+      { id: 'designer', label: 'У конструктора', class: 'stage-constructor' },
+      { id: 'workshop', label: 'В цеху', class: 'stage-workshop' }
     ];
 
-    // === ЛОГИКА ПРИЛОЖЕНИЯ ===
+    window.addEventListener('DOMContentLoaded', () => {
+      setCurrentDate();
+      loadRealData();
+    });
 
-    let currentFilter = 'all'; // all, manager, designer
-
-    function init() {
-      renderDate();
-      renderStats(DEMO_DATA);
-      renderTables(DEMO_DATA);
-      updateTotalCount(DEMO_DATA);
-    }
-
-    function renderDate() {
+    function setCurrentDate() {
       const now = new Date();
-      const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-      document.getElementById('currentDate').textContent = now.toLocaleDateString('ru-RU', options);
+      document.getElementById('currentDate').textContent = now.toLocaleDateString('ru-RU', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     }
 
-    function updateTotalCount(data) {
-      document.getElementById('totalOrders').textContent = `Всего заказов: ${data.length}`;
+    // === ЗАГРУЗКА ДАННЫХ ЧЕРЕЗ API ===
+    function loadRealData() {
+      document.getElementById('loader').style.display = 'block';
+      document.getElementById('statsContainer').style.display = 'none';
+      document.getElementById('managersSection').style.display = 'none';
+      document.getElementById('constructorsSection').style.display = 'none';
+      document.getElementById('errorContainer').innerHTML = '';
+
+      google.script.run
+        .withSuccessHandler(onDataLoaded)
+        .withFailureHandler(onDataError)
+        .getOrders();
     }
 
+    function onDataLoaded(data) {
+      document.getElementById('loader').style.display = 'none';
+      
+      if (!data || data.length === 0) {
+        document.getElementById('errorContainer').innerHTML = '<div class="error-msg">Заказов не найдено. Проверьте таблицу.</div>';
+        return;
+      }
+
+      // Нормализация данных (сопоставление полей таблицы с интерфейсом)
+      APP_DATA = data.map((item, idx) => ({
+        id: item.id || idx,
+        contract: item.contractNumber || item.dogovor || item['Номер договора'] || 'Нет',
+        client: item.clientName || item.client || item['Клиент'] || 'Не указан',
+        product: item.productName || item.order || item.item || item['Изделие'] || 'Без названия',
+        person: item.personName || item.manager || item.constructorName || item['Ответственный'] || 'Не назначен',
+        role: detectRole(item),
+        stage: item.stage || 'manager',
+        date: formatDate(item.planDate || item.startDate || item.date),
+        day: getWeekday(item.planDate || item.startDate || item.date),
+        notes: item.notes || item.comment || ''
+      }));
+
+      updateUI();
+    }
+
+    function onDataError(error) {
+      document.getElementById('loader').style.display = 'none';
+      document.getElementById('errorContainer').innerHTML = `<div class="error-msg">Ошибка: ${error.message}</div>`;
+      console.error(error);
+    }
+
+    function detectRole(item) {
+      // Логика определения роли. Если в данных есть явное поле role - используем его.
+      if (item.role === 'manager') return 'manager';
+      if (item.role === 'designer' || item.role === 'constructor') return 'designer';
+      
+      // Иначе пытаемся угадать по имени или другим полям
+      const p = (item.personName || item.manager || '').toLowerCase();
+      if (p.includes('мен')) return 'manager';
+      if (p.includes('кон')) return 'designer';
+      
+      // По умолчанию считаем менеджером, если не ясно
+      return 'manager'; 
+    }
+
+    function formatDate(d) {
+      if (!d) return '-';
+      const date = new Date(d);
+      return isNaN(date) ? d : date.toLocaleDateString('ru-RU', {day:'2-digit', month:'2-digit'});
+    }
+
+    function getWeekday(d) {
+      if (!d) return '';
+      const date = new Date(d);
+      return isNaN(date) ? '' : date.toLocaleDateString('ru-RU', {weekday:'short'});
+    }
+
+    function updateUI() {
+      document.getElementById('countVal').textContent = APP_DATA.length;
+      renderStats(APP_DATA);
+      filterBy(currentFilter); // Перерисовать таблицы согласно текущему фильтру
+    }
+
+    // === СТАТИСТИКА ===
     function calculateStats(data) {
       const stats = {};
-      
-      // Инициализация
-      ['Ирина (Мен)', 'София (Мен)', 'Ирина (Кон)', 'Валентина'].forEach(name => {
-        stats[name] = { total: 0, tz: 0, proforma: 0, kd: 0 };
-      });
-
       data.forEach(item => {
-        if (!stats[item.person]) return;
-        stats[item.person].total++;
-        
-        // Эмуляция подсчета стадий для бейджей (упрощенно по текущей стадии)
-        if (item.stage === 'sergey' || item.stage === 'manager') stats[item.person].tz++;
-        else if (item.stage === 'client') stats[item.person].proforma++;
-        else if (item.stage === 'designer' || item.stage === 'workshop') stats[item.person].kd++;
+        const name = item.person;
+        if (!stats[name]) stats[name] = { total:0, tz:0, proforma:0, kd:0, isMgr: item.role==='manager' };
+        stats[name].total++;
+        if (['sergey','manager'].includes(item.stage)) stats[name].tz++;
+        else if (item.stage === 'client') stats[name].proforma++;
+        else stats[name].kd++;
       });
-
       return stats;
     }
 
@@ -416,144 +276,138 @@
       const stats = calculateStats(data);
       const container = document.getElementById('statsContainer');
       container.innerHTML = '';
+      container.style.display = 'grid';
 
       Object.keys(stats).forEach(name => {
         const s = stats[name];
-        const isManager = name.includes('(Мен)');
-        const icon = isManager ? '👩‍💼' : '🛠️';
-        const roleColor = isManager ? '#2196f3' : '#9c27b0';
-
+        const icon = s.isMgr ? '👩‍💼' : '🛠️';
+        const color = s.isMgr ? '#667eea' : '#7b1fa2';
+        
         const card = document.createElement('div');
         card.className = 'stat-card';
         card.innerHTML = `
-          <div class="stat-header" style="color: ${roleColor}">
-            <span>${icon}</span> ${name.replace(' (Мен)', '').replace(' (Кон)', '')}
+          <div class="stat-header" style="color:${color}">
+            <span class="stat-icon">${icon}</span> ${name.replace('(Мен)','').replace('(Кон)','')}
           </div>
           <div class="stat-badges">
-            <div class="badge"><strong>${s.total}</strong> 📦 всего</div>
-            <div class="badge">${s.tz} ТЗ</div>
-            <div class="badge">📐 ${s.proforma}</div>
-            <div class="badge">КД ${s.kd}</div>
+            <span class="badge badge-total">📦 ${s.total}</span>
+            <span class="badge badge-tz">ТЗ ${s.tz}</span>
+            <span class="badge badge-proforma">📐 ${s.proforma}</span>
+            <span class="badge badge-kd">КД ${s.kd}</span>
           </div>
         `;
         container.appendChild(card);
       });
     }
 
-    function renderTables(data) {
-      const container = document.getElementById('tablesContainer');
-      container.innerHTML = '';
+    // === ТАБЛИЦЫ ===
+    function filterBy(view) {
+      currentFilter = view;
+      
+      // Переключение кнопок
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      if(view === 'managers') document.getElementById('btn-managers').classList.add('active');
+      if(view === 'constructors') document.getElementById('btn-constructors').classList.add('active');
 
-      // Группировка данных
-      const groups = {
-        managers: data.filter(i => i.role === 'manager'),
-        designers: data.filter(i => i.role === 'designer')
-      };
+      const mgrs = APP_DATA.filter(i => i.role === 'manager');
+      const cons = APP_DATA.filter(i => i.role === 'designer');
 
-      if (currentFilter === 'manager' || currentFilter === 'all') {
-        createTableSection(container, 'Менеджеры', groups.managers);
+      const mgrSec = document.getElementById('managersSection');
+      const consSec = document.getElementById('constructorsSection');
+
+      if (view === 'managers' || view === 'all') {
+        mgrSec.style.display = 'block';
+        renderTable('managersBody', 'mgrNotes', 'mgrCount', mgrs);
+      } else {
+        mgrSec.style.display = 'none';
       }
-      if (currentFilter === 'designer' || currentFilter === 'all') {
-        createTableSection(container, 'Конструкторы', groups.designers);
+
+      if (view === 'constructors' || view === 'all') {
+        consSec.style.display = 'block';
+        renderTable('constructorsBody', 'consNotes', 'consCount', cons);
+      } else {
+        consSec.style.display = 'none';
       }
+      
+      // Обновляем счетчик в шапке для отфильтрованных
+      const count = view === 'managers' ? mgrs.length : (view === 'constructors' ? cons.length : APP_DATA.length);
+      document.getElementById('countVal').textContent = count;
     }
 
-    function createTableSection(container, title, rows) {
-      if (rows.length === 0) return;
+    function renderTable(tbodyId, notesId, countId, rows) {
+      const tbody = document.getElementById(tbodyId);
+      const notesBlock = document.getElementById(notesId);
+      const countLabel = document.getElementById(countId);
 
-      const section = document.createElement('div');
-      section.className = 'table-section';
-      
-      // Проверка на важные заметки в группе
-      const urgentNotes = rows.filter(r => r.notes.toLowerCase().includes('ждут') || r.notes.toLowerCase().includes('срочно'));
-      const notesHtml = urgentNotes.length > 0 
-        ? `<div class="notes-block">⚠️ ${urgentNotes.map(n => n.notes).join('; ')}</div>` 
-        : '';
+      countLabel.textContent = `${rows.length} заказов`;
 
-      let rowsHtml = rows.map(row => `
+      if (rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#999">Нет заказов в этой категории</td></tr>';
+        notesBlock.style.display = 'none';
+        return;
+      }
+
+      notesBlock.style.display = 'flex';
+      const urgent = rows.filter(r => r.notes && (r.notes.toLowerCase().includes('ждут') || r.notes.toLowerCase().includes('срочно')));
+      const noteText = urgent.length > 0 
+        ? `<strong>${urgent.length} важно:</strong> ${urgent.map(u=>u.notes).join('; ')}`
+        : `<strong>${rows.length} заказ(ов)</strong> в работе`;
+      notesBlock.querySelector('.notes-text').innerHTML = noteText;
+
+      tbody.innerHTML = rows.map(row => `
         <tr>
           <td class="col-date">
-            <div style="font-weight:bold">${row.day}</div>
-            <div style="font-size:12px">${row.date}</div>
+            <div class="order-date">${row.date}</div>
+            <div class="order-day">${row.day}</div>
           </td>
-          <td class="col-order">${row.order}</td>
+          <td class="col-contract">${row.contract}</td>
+          <td>
+            <div class="col-client">${row.client}</div>
+            <div class="col-product">${row.product}</div>
+          </td>
           <td class="col-person">${row.person}</td>
-          <td class="col-stage">
-            <div class="stage-group">
+          <td class="stage-cell">
+            <div class="stage-buttons">
               ${STAGES.map(s => `
-                <button class="stage-btn ${row.stage === s.id ? 'active' : ''}" 
-                        data-stage="${s.id}" 
-                        onclick="setStage(${row.id}, '${s.id}', this)">
+                <button class="stage-btn ${s.class} ${row.stage === s.id ? 'active' : ''}" 
+                        onclick="setStage(this, '${row.contract}', '${s.id}')">
                   ${s.label}
                 </button>
               `).join('')}
             </div>
           </td>
-          <td class="col-notes">${row.notes}</td>
+          <td class="col-notes" title="${row.notes}">${row.notes || '—'}</td>
         </tr>
       `).join('');
-
-      section.innerHTML = `
-        <div class="section-header">${title} <span style="font-size:14px; font-weight:normal; color:#666">${rows.length} заказов</span></div>
-        <table class="queue-table">
-          <thead>
-            <tr>
-              <th class="col-date">Дата</th>
-              <th class="col-order">Заказ</th>
-              <th class="col-person">${title === 'Менеджеры' ? 'Менеджер' : 'Конструктор'}</th>
-              <th class="col-stage">Стадия</th>
-              <th class="col-notes">Заметки</th>
-            </tr>
-          </thead>
-          <tbody>${rowsHtml}</tbody>
-        </table>
-        ${notesHtml}
-      `;
-
-      container.appendChild(section);
     }
 
-    // === ОБРАБОТЧИКИ СОБЫТИЙ ===
-
-    function filterData(type) {
-      currentFilter = type;
-      
-      // Обновление кнопок
-      document.querySelectorAll('.btn-filter').forEach(btn => btn.classList.remove('active'));
-      document.getElementById(`btn-${type}`).classList.add('active');
-
-      // Перерисовка
-      renderTables(DEMO_DATA);
-      
-      // Пересчет статистики (можно фильтровать и статистику, если нужно)
-      // Для примера оставляем общую или можно отфильтровать:
-      const filteredData = type === 'all' ? DEMO_DATA : DEMO_DATA.filter(i => i.role === type);
-      renderStats(filteredData);
-      updateTotalCount(filteredData);
-    }
-
-    function setStage(orderId, newStage, btnElement) {
+    // === СОХРАНЕНИЕ СТАДИИ ===
+    function setStage(btn, contractKey, newStage) {
       // Визуальное переключение
-      const parent = btnElement.parentElement;
-      parent.querySelectorAll('.stage-btn').forEach(b => b.classList.remove('active'));
-      btnElement.classList.add('active');
+      btn.parentElement.querySelectorAll('.stage-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
 
-      // Обновление данных в памяти (для демо)
-      const item = DEMO_DATA.find(i => i.id === orderId);
-      if (item) {
-        item.stage = newStage;
-        // Здесь был бы вызов google.script.run.saveStage(orderId, newStage);
-        console.log(`Saved: Order ${orderId} -> Stage ${newStage}`);
-        
-        // Пересчет статистики после изменения
-        const filteredData = currentFilter === 'all' ? DEMO_DATA : DEMO_DATA.filter(i => i.role === currentFilter);
-        renderStats(filteredData);
-      }
+      // Поиск в локальном массиве для обновления статистики
+      const item = APP_DATA.find(i => String(i.contract) === String(contractKey));
+      if (item) item.stage = newStage;
+
+      // Отправка на сервер
+      google.script.run
+        .withSuccessHandler(() => {
+          console.log(`Saved: ${contractKey} -> ${newStage}`);
+          // Пересчет статистики после успеха
+          renderStats(APP_DATA); 
+          // Обновление заметок в таблице
+          filterBy(currentFilter);
+        })
+        .withFailureHandler(err => {
+          alert('Ошибка сохранения: ' + err);
+          // Возврат визуального состояния (упрощенно)
+          btn.classList.remove('active');
+          // Тут нужно найти предыдущую активную кнопку и вернуть ей класс active
+        })
+        .saveStage(contractKey, newStage);
     }
-
-    // Запуск при загрузке
-    window.addEventListener('DOMContentLoaded', init);
-
   </script>
 </body>
 </html>
