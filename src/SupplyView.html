@@ -20,6 +20,7 @@ class SupplyView {
         const clearButton = document.getElementById("clearSupplyOrderBtn");
         const isPlate = Store.getRole() === "plate";
         document.body.classList.toggle("supply-section-active", visible);
+        document.body.classList.toggle("supply-purchase-active", visible && Store.getRole() === "purchase");
         if (toolbar) toolbar.classList.toggle("hidden", !visible);
         if (statistics) statistics.classList.toggle("hidden", visible);
         if (addOrder) addOrder.classList.toggle("hidden", visible);
@@ -108,7 +109,7 @@ class SupplyView {
         });
     }
 
-    static getFilteredItems(items) {
+    static getFilteredItems(items, ignoreStatus = false, ignoreProduct = false) {
         let result = [...(items || [])];
         const supplier = Store.getSelectedUser();
         const query = String(document.getElementById("supplySearch")?.value || "").trim().toLowerCase();
@@ -121,9 +122,11 @@ class SupplyView {
         else result = result.filter(item => item.category !== "Расходники");
         // Завершённые позиции не загромождают очередь: их показываем только
         // при явном выборе статуса «Товар получен».
-        if (status) result = result.filter(item => item.purchaseStatus === status);
-        else result = result.filter(item => item.purchaseStatus !== "Товар получен");
-        if (productKey) result = result.filter(item => [item.contract, item.client, item.product].join("|") === productKey);
+        if (!ignoreStatus) {
+            if (status) result = result.filter(item => item.purchaseStatus === status);
+            else result = result.filter(item => item.purchaseStatus !== "Товар получен");
+        }
+        if (productKey && !ignoreProduct) result = result.filter(item => [item.contract, item.client, item.product].join("|") === productKey);
         if (query) result = result.filter(item => [item.contract, item.client, item.product, item.article, item.name, item.supplier]
             .some(value => String(value || "").toLowerCase().includes(query)));
         return result;
@@ -132,6 +135,7 @@ class SupplyView {
     static render(items) {
         this.toggle(true);
         this.syncProductFilter(items);
+        this.syncStatusFilter(items);
         const rows = this.getFilteredItems(items);
         const container = document.getElementById("ordersContainer");
         const total = document.getElementById("totalOrders");
@@ -141,10 +145,7 @@ class SupplyView {
             container.innerHTML = `<div class="block"><div class="supply-empty">Нет позиций снабжения. Загрузите XLS кнопкой «Импорт спецификации».</div></div>`;
             return;
         }
-        const statuses = Store.state.dictionaries?.purchaseStatuses || ["Новый", "Заказ поставщику", "Счёт получен", "Оплачено", "Товар получен"];
-        const counts = statuses.map(status => `<span class="stage-summary-item">${status} <span class="badge">${rows.filter(item => item.purchaseStatus === status).length}</span></span>`).join("");
         container.innerHTML = `<div class="block">
-            <div class="block-header"><div class="block-name">📦 Материалы <span class="badge">${rows.length}</span></div><div class="stage-summary">${counts}</div></div>
             <div class="table-wrap"><table class="supply-table purchase-table"><thead><tr>
                 <th>#</th><th>Договор /<br>клиент</th><th>Изделие</th><th>Дедлайн</th><th>Артикул</th><th>Наименование</th><th>Кол-во</th><th>Ед.</th><th>К закупке</th><th>Производитель</th><th>Поставщик</th><th>Цена</th><th>Статус закупки</th><th>Действия</th>
             </tr></thead><tbody>${rows.map((item, index) => this.renderRow(item, index)).join("")}</tbody></table></div></div>`;
@@ -159,6 +160,18 @@ class SupplyView {
         });
     }
 
+    static syncStatusFilter(items) {
+        const select = document.getElementById("supplyStatusFilter");
+        if (!select) return;
+        const selected = select.value;
+        const statuses = Store.state.dictionaries?.purchaseStatuses || ["Новый", "Заказ поставщику", "Счёт получен", "Оплачено", "Товар получен"];
+        const rows = this.getFilteredItems(items, true);
+        const activeCount = rows.filter(item => item.purchaseStatus !== "Товар получен").length;
+        select.innerHTML = `<option value="">Все статусы · ${activeCount}</option>` + statuses.map(status =>
+            `<option value="${this.escape(status)}">${this.escape(status)} · ${rows.filter(item => item.purchaseStatus === status).length}</option>`).join("");
+        select.value = statuses.includes(selected) ? selected : "";
+    }
+
     static syncProductFilter(items) {
         const select = document.getElementById("supplyProductFilter");
         if (!select) return;
@@ -170,7 +183,8 @@ class SupplyView {
             products[values.join("|")] = values.join(" · ");
         });
         const keys = Object.keys(products).sort((left, right) => products[left].localeCompare(products[right], "ru"));
-        select.innerHTML = `<option value="">Все изделия</option>${keys.map(key => `<option value="${this.escape(key)}">${this.escape(products[key])}</option>`).join("")}`;
+        const visibleCount = this.getFilteredItems(items, false, true).length;
+        select.innerHTML = `<option value="">Все изделия · ${visibleCount}</option>${keys.map(key => `<option value="${this.escape(key)}">${this.escape(products[key])}</option>`).join("")}`;
         select.value = keys.includes(selected) ? selected : "";
     }
 
