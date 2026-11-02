@@ -18,3 +18,7 @@ Node.js >=20; run `npm ci`, `node scripts/check-source.cjs`, and `npm run status
 The credential exists only in a restricted temporary file on the Actions runner and is removed at job exit. It is not stored in the Codex cloud snapshot. Logs must never print its contents. Google OAuth, workflow permissions, and actual publication have not yet been verified. Cloud Codex needs separate GitHub API/Actions authorization to trigger jobs itself; Git read/push access does not establish that capability.
 
 The configured spreadsheet ID is preserved from the source. The purpose of the second spreadsheet provided during handoff remains unconfirmed. Existing Script Properties remain in the same Apps Script project. Real application calls can write to Sheets/Drive or send notifications; use a separate test setup before functional testing.
+
+## Compare published version
+
+Run Actions → Apps Script → Run workflow → operation `compare`, branch `master`. This reads the exact immutable version referenced by `GAS_DEPLOYMENT_ID` and compares it to the selected repository commit, without pushing or publishing. The job summary lists identical counts and changed, repository-only, and published-only file names. Only filenames and counts are logged; source and OAuth values are not printed. This does not compare Script Properties, triggers, spreadsheet contents or runtime behavior. Comparison code uses the installed clasp authentication adapter from locked clasp 3.4.1; revalidate it when upgrading clasp.

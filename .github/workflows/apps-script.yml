@@ -3,9 +3,9 @@ on:
   workflow_dispatch:
     inputs:
       operation:
-        description: Verify access or publish selected code
+        description: Verify access, compare published code, or publish
         type: choice
-        options: [verify, publish]
+        options: [verify, compare, publish]
         default: verify
 permissions:
   contents: read
@@ -41,6 +41,9 @@ jobs:
           unset CLASP_AUTH_JSON
           clasp_bin=./node_modules/.bin/clasp
           "$clasp_bin" -A "$auth_file" list-deployments
+          if [ "$OPERATION" = compare ]; then
+            node scripts/compare-published.mjs "$auth_file"
+          fi
           if [ "$OPERATION" = publish ]; then
             test -n "$DEPLOYMENT_ID" || { echo 'Missing GAS_DEPLOYMENT_ID variable'; exit 1; }
             "$clasp_bin" -A "$auth_file" push --force
