@@ -48,8 +48,12 @@ class SupplierOrdersView {
         }
 
         this.renderSupplierButtons(suppliers, selectedSupplier);
-        this.syncSelect("supplierOrdersSupplierFilter", suppliers, "Все поставщики", selectedSupplier);
-        this.syncSelect("supplierOrdersStatusFilter", Store.state.dictionaries?.supplierOrderStatuses || [], "Все статусы");
+        const selectedStatus = document.getElementById("supplierOrdersStatusFilter")?.value || "";
+        const supplierRows = (items || []).filter(item => !selectedStatus || item.status === selectedStatus);
+        const statusRows = (items || []).filter(item => !selectedSupplier || item.supplier === selectedSupplier);
+        const countBy = (rows, key) => rows.reduce((counts, item) => counts.set(item[key], (counts.get(item[key]) || 0) + 1), new Map());
+        this.syncSelect("supplierOrdersSupplierFilter", suppliers, "Все поставщики", selectedSupplier, countBy(supplierRows, "supplier"), supplierRows.length);
+        this.syncSelect("supplierOrdersStatusFilter", Store.state.dictionaries?.supplierOrderStatuses || [], "Все статусы", undefined, countBy(statusRows, "status"), statusRows.length);
     }
 
     static renderSupplierButtons(suppliers, selectedSupplier) {
@@ -65,11 +69,11 @@ class SupplierOrdersView {
         });
     }
 
-    static syncSelect(id, values, placeholder, selectedValue) {
+    static syncSelect(id, values, placeholder, selectedValue, counts, total) {
         const select = document.getElementById(id);
         if (!select) return;
         const selected = selectedValue === undefined ? select.value : selectedValue;
-        select.innerHTML = `<option value="">${placeholder}</option>${values.map(value => `<option value="${this.escape(value)}">${this.escape(value)}</option>`).join("")}`;
+        select.innerHTML = `<option value="">${placeholder}${counts ? ` · ${total}` : ""}</option>${values.map(value => `<option value="${this.escape(value)}">${this.escape(value)}${counts ? ` · ${counts.get(value) || 0}` : ""}</option>`).join("")}`;
         select.value = values.includes(selected) ? selected : "";
     }
 
@@ -92,7 +96,7 @@ class SupplierOrdersView {
             return;
         }
         const statuses = Store.state.dictionaries?.supplierOrderStatuses || [];
-        container.innerHTML = `<div class="block"><div class="block-header"><div class="block-name">📋 Заказы поставщикам <span class="badge">${rows.length}</span></div></div>
+        container.innerHTML = `<div class="block">
             <div class="table-wrap"><table class="supplier-orders-table"><thead><tr><th>Номер</th><th>Создан</th><th>Поставщик</th><th>Статус</th><th>Номер счёта</th><th>Изделия</th><th>Позиций</th><th>Сумма</th><th>Действия</th></tr></thead><tbody>${rows.map(order => `<tr>
                 <td>${this.escape(order.number)}</td><td>${this.escape(QueueView.formatDeadline(order.createdAt))}</td><td>${this.escape(order.supplier)}</td>
                 <td><select data-supplier-order-status="${this.escape(order.id)}">${statuses.map(status => `<option value="${this.escape(status)}"${status === order.status ? " selected" : ""}>${this.escape(status)}</option>`).join("")}</select></td>

@@ -2615,33 +2615,44 @@ table {
 }
 
 /* Компактная шапка закупки: счётчики находятся в фильтрах, таблица без дубля заголовка. */
-.supply-purchase-active .header { gap: 6px 12px; align-items: flex-start; }
-.supply-purchase-active .header > .section-selector { flex: 0 1 220px; padding: 7px 12px; font-size: 15px; }
-.supply-purchase-active .header-actions { gap: 5px; width: auto; }
-.supply-purchase-active .header-actions .reset-btn,
-.supply-purchase-active #supplyToolbar .reset-btn { padding: 6px 10px; font-size: 12px; line-height: 1.35; white-space: nowrap; }
-.supply-purchase-active #supplyRoleTabs { padding: 3px; gap: 2px; }
-.supply-purchase-active #supplyRoleTabs .toggle-btn { flex: 0 1 auto; padding: 6px 12px; font-size: 13px; white-space: nowrap; }
-.supply-purchase-active .filter-panel { margin-bottom: 6px; }
-.supply-purchase-active .filter-item { width: 100%; min-width: 0; }
-.supply-purchase-active #filterTitle { display: none; }
-.supply-purchase-active #userButtons { gap: 3px; margin: 0; }
-.supply-purchase-active #userButtons .toggle-btn { flex: 0 0 auto; padding: 5px 10px; font-size: 12px; line-height: 1.35; }
-.supply-purchase-active #supplyToolbar { gap: 6px; margin-bottom: 8px; }
-.supply-purchase-active #supplyToolbar input,
-.supply-purchase-active #supplyToolbar select { padding: 6px 10px; font-size: 12px; min-height: 30px; }
-.supply-purchase-active #supplySearch { flex: 1 1 240px; min-width: 180px; }
-.supply-purchase-active #supplyProductFilter { flex: 1 1 220px; min-width: 0; max-width: 380px; }
-.supply-purchase-active #supplyStatusFilter { flex: 0 1 210px; min-width: 0; }
-.supply-purchase-active #ordersContainer > .block { padding: 10px 14px; }
+:is(.supply-purchase-active, .supplier-orders-section-active) .header { gap: 6px 12px; align-items: flex-start; }
+:is(.supply-purchase-active, .supplier-orders-section-active) .header > .section-selector { flex: 0 1 220px; padding: 7px 12px; font-size: 15px; }
+:is(.supply-purchase-active, .supplier-orders-section-active) .header-actions { gap: 5px; width: auto; }
+:is(.supply-purchase-active, .supplier-orders-section-active) .header-actions .reset-btn,
+:is(.supply-purchase-active, .supplier-orders-section-active) #supplyToolbar .reset-btn { padding: 6px 10px; font-size: 12px; line-height: 1.35; white-space: nowrap; }
+:is(.supply-purchase-active, .supplier-orders-section-active) #supplyRoleTabs { padding: 3px; gap: 2px; }
+:is(.supply-purchase-active, .supplier-orders-section-active) #supplyRoleTabs .toggle-btn { flex: 0 1 auto; padding: 6px 12px; font-size: 13px; white-space: nowrap; }
+:is(.supply-purchase-active, .supplier-orders-section-active) .filter-panel { margin-bottom: 6px; }
+:is(.supply-purchase-active, .supplier-orders-section-active) .filter-item { width: 100%; min-width: 0; }
+:is(.supply-purchase-active, .supplier-orders-section-active) #filterTitle { display: none; }
+:is(.supply-purchase-active, .supplier-orders-section-active) #userButtons { gap: 3px; margin: 0; }
+:is(.supply-purchase-active, .supplier-orders-section-active) #userButtons .toggle-btn { flex: 0 0 auto; padding: 5px 10px; font-size: 12px; line-height: 1.35; }
+:is(.supply-purchase-active, .supplier-orders-section-active) #supplyToolbar { gap: 6px; margin-bottom: 8px; }
+:is(.supply-purchase-active, .supplier-orders-section-active) #supplyToolbar input,
+:is(.supply-purchase-active, .supplier-orders-section-active) #supplyToolbar select { padding: 6px 10px; font-size: 12px; min-height: 30px; }
+:is(.supply-purchase-active, .supplier-orders-section-active) #supplySearch { flex: 1 1 240px; min-width: 180px; }
+:is(.supply-purchase-active, .supplier-orders-section-active) #supplyProductFilter { flex: 1 1 220px; min-width: 0; max-width: 380px; }
+:is(.supply-purchase-active, .supplier-orders-section-active) #supplyStatusFilter { flex: 0 1 210px; min-width: 0; }
+:is(.supply-purchase-active, .supplier-orders-section-active) #ordersContainer > .block { padding: 10px 14px; }
 @media (max-width: 700px) {
-    .supply-purchase-active .header > .section-selector { flex-basis: 100%; }
-    .supply-purchase-active .header-actions { justify-content: flex-start; }
-    .supply-purchase-active #supplyRoleTabs { width: 100%; overflow-x: auto; }
-    .supply-purchase-active #supplyRoleTabs .toggle-btn { flex-shrink: 0; }
-    .supply-purchase-active .purchase-table { min-width: 1100px; }
-    .supply-purchase-active #supplySearch { flex-basis: 100%; min-width: 0; }
-    .supply-purchase-active #supplyProductFilter,
-    .supply-purchase-active #supplyStatusFilter { flex: 1 1 140px; max-width: 100%; }
+    :is(.supply-purchase-active, .supplier-orders-section-active) .header > .section-selector { flex-basis: 100%; }
+    :is(.supply-purchase-active, .supplier-orders-section-active) .header-actions { justify-content: flex-start; }
+    :is(.supply-purchase-active, .supplier-orders-section-active) #supplyRoleTabs { width: 100%; overflow-x: auto; }
+    :is(.supply-purchase-active, .supplier-orders-section-active) #supplyRoleTabs .toggle-btn { flex-shrink: 0; }
+    :is(.supply-purchase-active, .supplier-orders-section-active) .purchase-table { min-width: 1100px; }
+    :is(.supply-purchase-active, .supplier-orders-section-active) #supplySearch { flex-basis: 100%; min-width: 0; }
+    :is(.supply-purchase-active, .supplier-orders-section-active) #supplyProductFilter,
+    :is(.supply-purchase-active, .supplier-orders-section-active) #supplyStatusFilter { flex: 1 1 140px; max-width: 100%; }
+}
+
+.supplier-orders-section-active { padding-top: 10px; }
+.supplier-orders-section-active .subtitle { display: none; }
+.supplier-orders-section-active .header { margin-bottom: 8px; }
+.supplier-orders-section-active #supplierOrdersToolbar { gap: 6px; margin-bottom: 8px; }
+.supplier-orders-section-active #supplierOrdersToolbar .reset-btn,
+.supplier-orders-section-active #supplierOrdersToolbar select { padding: 6px 10px; font-size: 12px; min-height: 30px; }
+.supplier-orders-section-active #supplierOrdersToolbar select { min-width: 180px; max-width: 100%; }
+@media (max-width: 700px) {
+    .supplier-orders-section-active #supplierOrdersToolbar select { flex: 1 1 150px; min-width: 0; }
 }
 </style>
