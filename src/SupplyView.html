@@ -1,0 +1,800 @@
+<script>
+class SupplyView {
+    static pendingFile = null;
+    static previewMaterials = null;
+    static importTables = null;
+    static importFormat = "";
+    static importInfo = null;
+    static supplierOrderCandidates = [];
+    static initialized = false;
+
+    static toggle(visible) {
+        const toolbar = document.getElementById("supplyToolbar");
+        const statistics = document.getElementById("statisticsPanel");
+        const addOrder = document.getElementById("addOrderBtn");
+        const suppliersButton = document.getElementById("supplySuppliersBtn");
+        const consumablesButton = document.getElementById("consumablesMappingBtn");
+        const articleSearchButton = document.getElementById("searchSupplyArticlesBtn");
+        const expoButton = document.getElementById("loadExpoCatalogBtn");
+        const importButton = document.getElementById("importSupplyBtn");
+        const clearButton = document.getElementById("clearSupplyOrderBtn");
+        const isPlate = Store.getRole() === "plate";
+        document.body.classList.toggle("supply-section-active", visible);
+        if (toolbar) toolbar.classList.toggle("hidden", !visible);
+        if (statistics) statistics.classList.toggle("hidden", visible);
+        if (addOrder) addOrder.classList.toggle("hidden", visible);
+        if (suppliersButton) suppliersButton.classList.toggle("hidden", !visible);
+        if (consumablesButton) consumablesButton.classList.toggle("hidden", !visible);
+        if (articleSearchButton) articleSearchButton.classList.toggle("hidden", !visible);
+        if (importButton) importButton.classList.toggle("hidden", !visible || isPlate);
+        if (clearButton) clearButton.classList.toggle("hidden", !visible || isPlate);
+        if (suppliersButton) suppliersButton.classList.toggle("hidden", !visible || isPlate);
+        const supplierOrdersButton = document.getElementById("supplierOrdersBtn");
+        if (supplierOrdersButton) supplierOrdersButton.classList.toggle("hidden", !visible || isPlate);
+        if (consumablesButton) consumablesButton.classList.toggle("hidden", !visible || isPlate);
+        if (articleSearchButton) articleSearchButton.classList.toggle("hidden", !visible || isPlate);
+        if (expoButton) expoButton.classList.toggle("hidden", !visible || !isPlate);
+        if (visible) this.bindControls();
+    }
+
+    static bindControls() {
+        if (this.initialized) return;
+        this.initialized = true;
+        const importButton = document.getElementById("importSupplyBtn");
+        const input = document.getElementById("supplyFileInput");
+        const search = document.getElementById("supplySearch");
+        const status = document.getElementById("supplyStatusFilter");
+        const product = document.getElementById("supplyProductFilter");
+        const suppliersButton = document.getElementById("supplySuppliersBtn");
+        const supplierOrdersButton = document.getElementById("supplierOrdersBtn");
+        const consumablesButton = document.getElementById("consumablesMappingBtn");
+        const articleSearchButton = document.getElementById("searchSupplyArticlesBtn");
+        const expoButton = document.getElementById("loadExpoCatalogBtn");
+        const clearButton = document.getElementById("clearSupplyOrderBtn");
+        if (importButton) importButton.onclick = () => input.click();
+        if (input) input.onchange = () => this.prepareImport(input.files && input.files[0]);
+        if (search) search.oninput = () => QueueView.render();
+        if (status) status.onchange = () => QueueView.render();
+        if (product) product.onchange = () => QueueView.render();
+        if (suppliersButton) suppliersButton.onclick = () => this.openSuppliers();
+        if (supplierOrdersButton) supplierOrdersButton.onclick = () => this.openSupplierOrders();
+        if (consumablesButton) consumablesButton.onclick = () => this.openConsumablesMapping();
+        if (articleSearchButton) articleSearchButton.onclick = () => this.searchUnmatchedArticles(articleSearchButton);
+        if (expoButton) expoButton.onclick = () => this.loadExpoCatalog(expoButton);
+        if (clearButton) clearButton.onclick = () => this.openClearSupplyOrder();
+        document.getElementById("cancelSupplyImport").onclick = () => this.closeImport();
+        document.getElementById("confirmSupplyImport").onclick = () => this.confirmImport();
+        document.getElementById("supplyOrderSelect").onchange = () => this.resetPreview();
+        document.getElementById("closeSupplySuppliers").onclick = () => this.closeSuppliers();
+        document.getElementById("saveSupplySupplier").onclick = () => this.saveSupplier();
+        document.getElementById("closeConsumablesMapping").onclick = () => this.closeConsumablesMapping();
+        document.getElementById("saveConsumablesMapping").onclick = () => this.saveConsumablesMapping();
+        document.getElementById("closeSupplierOrders").onclick = () => this.closeSupplierOrders();
+        document.getElementById("loadSupplierOrderCandidates").onclick = () => this.loadSupplierOrderCandidates();
+        document.getElementById("supplierOrderSupplier").onchange = () => {
+            this.resetSupplierOrderPicker();
+            document.getElementById("supplierOrderDetails").classList.add("hidden");
+            this.renderSupplierOrders();
+        };
+        document.getElementById("createSupplierOrder").onclick = () => this.createSupplierOrder();
+        document.getElementById("supplierOrderSearch").oninput = () => this.renderSupplierOrderCandidates();
+        document.getElementById("selectAllSupplierOrderRows").onclick = () => this.setSupplierOrderRows(true);
+        document.getElementById("clearSupplierOrderRows").onclick = () => this.setSupplierOrderRows(false);
+        document.getElementById("selectSupplierOrderProducts").onclick = () => this.selectSupplierOrderProducts();
+        document.getElementById("cancelClearSupplyOrder").onclick = () => this.closeClearSupplyOrder();
+        document.getElementById("confirmClearSupplyOrder").onclick = () => this.confirmClearSupplyOrder();
+    }
+
+    static initFilters(items) {
+        const suppliers = [...new Set((items || []).map(item => String(item.supplier || "").trim()).filter(Boolean))]
+            .sort((a, b) => a.localeCompare(b, "ru"));
+        const title = document.getElementById("filterTitle");
+        const panel = document.getElementById("userButtons");
+        if (title) title.textContent = "📦 Поставщики";
+        if (!panel) return;
+        const selected = Store.getSelectedUser();
+        const otherFilter = "__supply_other__";
+        panel.innerHTML = `<button class="toggle-btn ${selected ? "" : "active"}" data-user="">Все</button>` +
+            suppliers.map(supplier => `<button class="toggle-btn ${supplier === selected ? "active" : ""}" data-user="${this.escape(supplier)}">${this.escape(supplier)}</button>`).join("") +
+            `<button class="toggle-btn ${selected === otherFilter ? "active" : ""}" data-user="${otherFilter}">Прочие</button>`;
+        panel.querySelectorAll("[data-user]").forEach(button => {
+            button.onclick = () => {
+                QueueController.setSelectedUser(button.dataset.user || "");
+                // Перестраиваем эту панель сразу, не полагаясь на общий
+                // обработчик очереди: у снабжения свой набор фильтров.
+                this.initFilters(QueueView.orders);
+                this.render(QueueView.orders);
+            };
+        });
+    }
+
+    static getFilteredItems(items) {
+        let result = [...(items || [])];
+        const supplier = Store.getSelectedUser();
+        const query = String(document.getElementById("supplySearch")?.value || "").trim().toLowerCase();
+        const status = document.getElementById("supplyStatusFilter")?.value || "";
+        const productKey = document.getElementById("supplyProductFilter")?.value || "";
+        if (supplier === "__supply_other__") {
+            // «Прочие» — только действительно не найденные позиции.
+            result = result.filter(item => item.category !== "Расходники" && !String(item.supplier || "").trim());
+        } else if (supplier) result = result.filter(item => item.supplier === supplier);
+        else result = result.filter(item => item.category !== "Расходники");
+        // Завершённые позиции не загромождают очередь: их показываем только
+        // при явном выборе статуса «Товар получен».
+        if (status) result = result.filter(item => item.purchaseStatus === status);
+        else result = result.filter(item => item.purchaseStatus !== "Товар получен");
+        if (productKey) result = result.filter(item => [item.contract, item.client, item.product].join("|") === productKey);
+        if (query) result = result.filter(item => [item.contract, item.client, item.product, item.article, item.name, item.supplier]
+            .some(value => String(value || "").toLowerCase().includes(query)));
+        return result;
+    }
+
+    static render(items) {
+        this.toggle(true);
+        this.syncProductFilter(items);
+        const rows = this.getFilteredItems(items);
+        const container = document.getElementById("ordersContainer");
+        const total = document.getElementById("totalOrders");
+        if (total) total.textContent = `Позиций: ${rows.length}`;
+        if (!container) return;
+        if (!rows.length) {
+            container.innerHTML = `<div class="block"><div class="supply-empty">Нет позиций снабжения. Загрузите XLS кнопкой «Импорт спецификации».</div></div>`;
+            return;
+        }
+        const statuses = Store.state.dictionaries?.purchaseStatuses || ["Новый", "Заказ поставщику", "Счёт получен", "Оплачено", "Товар получен"];
+        const counts = statuses.map(status => `<span class="stage-summary-item">${status} <span class="badge">${rows.filter(item => item.purchaseStatus === status).length}</span></span>`).join("");
+        container.innerHTML = `<div class="block">
+            <div class="block-header"><div class="block-name">📦 Материалы <span class="badge">${rows.length}</span></div><div class="stage-summary">${counts}</div></div>
+            <div class="table-wrap"><table class="supply-table purchase-table"><thead><tr>
+                <th>#</th><th>Договор /<br>клиент</th><th>Изделие</th><th>Дедлайн</th><th>Артикул</th><th>Наименование</th><th>Кол-во</th><th>Ед.</th><th>К закупке</th><th>Производитель</th><th>Поставщик</th><th>Цена</th><th>Статус закупки</th><th>Действия</th>
+            </tr></thead><tbody>${rows.map((item, index) => this.renderRow(item, index)).join("")}</tbody></table></div></div>`;
+        container.querySelectorAll("[data-supply-status]").forEach(select => {
+            select.onchange = () => this.setStatus(select.dataset.supplyStatus, select.value);
+        });
+        container.querySelectorAll("[data-supply-supplier]").forEach(select => {
+            select.onchange = () => this.assignSupplier(select.dataset.supplySupplier, select.value);
+        });
+        container.querySelectorAll("[data-supply-delete]").forEach(button => {
+            button.onclick = () => this.deleteMaterial(button.dataset.supplyDelete, button.dataset.supplyName);
+        });
+    }
+
+    static syncProductFilter(items) {
+        const select = document.getElementById("supplyProductFilter");
+        if (!select) return;
+        const selected = select.value;
+        const products = {};
+        (items || []).forEach(item => {
+            const values = [String(item.contract || "").trim(), String(item.client || "").trim(), String(item.product || "").trim()];
+            if (!values[0] || !values[2]) return;
+            products[values.join("|")] = values.join(" · ");
+        });
+        const keys = Object.keys(products).sort((left, right) => products[left].localeCompare(products[right], "ru"));
+        select.innerHTML = `<option value="">Все изделия</option>${keys.map(key => `<option value="${this.escape(key)}">${this.escape(products[key])}</option>`).join("")}`;
+        select.value = keys.includes(selected) ? selected : "";
+    }
+
+    static renderRow(item, index) {
+        const statuses = Store.state.dictionaries?.purchaseStatuses || ["Новый", "Заказ поставщику", "Счёт получен", "Оплачено", "Товар получен"];
+        const statusClass = "supply-status-" + statuses.indexOf(item.purchaseStatus);
+        const price = item.price === "" || item.price === null || item.price === undefined ? "—" : Number(item.price).toLocaleString("ru-RU", { maximumFractionDigits: 2 });
+        const articleMatched = /артикул/i.test(String(item.matchMethod || ""));
+        const purchaseAmount = Number(item.purchaseQuantity);
+        const purchaseDisplay = Number.isFinite(purchaseAmount) && purchaseAmount > 0 && item.purchaseUnit ? `${this.escape(item.purchaseQuantity)} · ${this.escape(item.purchaseUnit)}` : "—";
+        const matchWarning = item.matchStatus === "ANALOG" ? `<div class="supply-version-warning">Аналог — проверить</div>` : "";
+        const supplierLink = item.productUrl ? ` <a class="supplier-product-link" href="${this.escape(item.productUrl)}" target="_blank" rel="noopener">Карточка</a>` : "";
+        const supplierOptions = [...new Set([...(Store.state.dictionaries?.suppliers || []), item.supplier || ""])]
+            .filter(Boolean).sort((left, right) => left.localeCompare(right, "ru"));
+        const supplierSelect = `<select class="supplier-select" data-supply-supplier="${this.escape(item.rowId)}" title="Выбрать поставщика">
+            <option value="">Не определён</option>${supplierOptions.map(supplier => `<option value="${this.escape(supplier)}"${supplier === item.supplier ? " selected" : ""}>${this.escape(supplier)}</option>`).join("")}</select>`;
+        const statusSelect = `<select class="purchase-status-select" data-supply-status="${this.escape(item.rowId)}">${statuses.map(status => `<option${status === (item.purchaseStatus || "Новый") ? " selected" : ""}>${this.escape(status)}</option>`).join("")}</select>`;
+        return `<tr class="${statusClass}${articleMatched ? " supply-article-matched" : ""}"><td>${index + 1}</td><td class="master-order-meta-cell"><strong>${this.escape(item.contract || "—")}</strong><span>${this.escape(item.client || "—")}</span></td><td>${this.escape(item.product)}</td><td>${this.escape(QueueView.formatDeadline(item.deadline))}</td>
+            <td>${this.escape(item.article || "—")}</td><td class="supply-name">${this.escape(item.name)}${matchWarning}${item.excludedFromVersion ? `<div class="supply-version-warning">Исключено из новой версии</div>` : ""}</td><td>${this.escape(item.quantity)}</td><td>${this.escape(item.unit)}</td><td>${purchaseDisplay}</td><td>${this.escape(item.manufacturer || "—")}</td>
+            <td>${supplierSelect}${supplierLink}</td>
+            <td>${price}</td><td>${statusSelect}</td>
+            <td class="supply-actions"><button class="reset-btn supply-delete-btn" data-supply-delete="${this.escape(item.rowId)}" data-supply-name="${this.escape(item.name)}" title="Удалить материал">🗑</button></td></tr>`;
+    }
+
+    static prepareImport(file) {
+        if (!file) return;
+        if (!/\.(xls|xml)$/i.test(file.name)) return QueueView.showMessage(new Error("Выберите файл в формате XLS или XML."));
+        this.pendingFile = file;
+        this.resetPreview();
+        this.importFormat = /\.xml$/i.test(file.name) || /(?:application|text)\/xml/i.test(file.type || "") ? "xml" : "xls";
+        if (this.importFormat === "xml") return this.prepareXmlImport(file);
+        QueueController.getSupplyImportCandidates(file.name).then(candidates => {
+            const select = document.getElementById("supplyOrderSelect");
+            select.innerHTML = candidates.map(candidate => `<option value="${this.escape(candidate.key)}">${this.escape(candidate.contract)} · ${this.escape(candidate.client)} · ${this.escape(candidate.product)}</option>`).join("");
+            document.getElementById("supplyImportFile").textContent = file.name;
+            this.setImportOrderHint("");
+            document.getElementById("supplyImportModal").classList.remove("hidden");
+        }).catch(error => QueueView.showMessage(error));
+    }
+
+    static prepareXmlImport(file) {
+        const request = { name: file.name, mimeType: file.type || "application/xml" };
+        this.encodeFile(file).then(base64 => {
+            request.base64 = base64;
+            return Promise.all([
+                QueueController.analyzeSupplySpecification(request, ""),
+                QueueController.getSupplyImportCandidates(file.name)
+            ]);
+        }).then(([analysis, candidates]) => {
+            if (!analysis || analysis.format !== "xml" || !Array.isArray(analysis.candidates)) {
+                throw new Error("Сервер не вернул результат анализа XML-спецификации.");
+            }
+            const select = document.getElementById("supplyOrderSelect");
+            select.innerHTML = candidates.map(candidate => `<option value="${this.escape(candidate.key)}">${this.escape(candidate.contract)} · ${this.escape(candidate.client)} · ${this.escape(candidate.product)}</option>`).join("");
+            if (analysis.matchedOrderKey) select.value = analysis.matchedOrderKey;
+            this.importInfo = { format: "xml", sourceOrder: analysis.sourceOrder || null, manualOrderSelection: Boolean(analysis.requiresManualSelection), matchSource: analysis.matchSource || "" };
+            const source = analysis.sourceOrder || {};
+            const sourceLabel = [source.contract, source.client, source.product].filter(Boolean).join(" · ");
+            const origin = sourceLabel || analysis.sourceFile || file.name;
+            const matchLabel = analysis.matchSource === "source-file" ? "по имени исходного файла" : "по ключу XML";
+            this.setImportOrderHint(analysis.requiresManualSelection ? `Источник XML: ${origin}. Изделие не определено однозначно — выберите его вручную.` : `Изделие определено ${matchLabel}: ${select.options[select.selectedIndex]?.text || sourceLabel}. Позиций: ${analysis.materialCount}.`);
+            document.getElementById("supplyImportFile").textContent = file.name;
+            document.getElementById("supplyImportModal").classList.remove("hidden");
+        }).catch(error => QueueView.showMessage(error));
+    }
+
+    static confirmImport() {
+        const file = this.pendingFile;
+        const orderKey = document.getElementById("supplyOrderSelect").value;
+        if (!file || !orderKey) return;
+        const button = document.getElementById("confirmSupplyImport");
+        button.disabled = true;
+        if (this.previewMaterials) {
+            button.textContent = "Импортируем…";
+            QueueController.saveSupplySpecification(this.previewMaterials, file.name, orderKey, this.importInfo)
+                .then(result => {
+                    if (!result || !Number.isFinite(Number(result.imported)) || !Array.isArray(result.unresolved)) {
+                        throw new Error("Сервер не вернул результат импорта спецификации.");
+                    }
+                    this.closeImport();
+                    const unresolved = result.unresolved || [];
+                    const quantityWarnings = result.quantityWarnings || [];
+                    const quantityMessage = quantityWarnings.length ? ` Предупреждения по ${quantityWarnings.length} поз.: ${quantityWarnings.join(" ")}` : "";
+                    this.showSupplyDialog("Импорт завершён", `Импортировано позиций: ${result.imported}.${result.manuallySelectedOrder ? " Изделие выбрано вручную." : ""}${unresolved.length ? ` Не определён поставщик для ${unresolved.length} позиций.` : ""}${quantityMessage}`, { confirmText: "Понятно" });
+                })
+                .catch(error => QueueView.showMessage(error))
+                .finally(() => { button.disabled = false; button.textContent = "Импортировать"; });
+            return;
+        }
+        const request = { name: file.name, mimeType: file.type || "application/vnd.ms-excel" };
+        if (this.importFormat === "xml") {
+            button.textContent = "Проверяем…";
+            this.encodeFile(file).then(base64 => {
+                request.base64 = base64;
+                return QueueController.previewSupplySpecification(request, orderKey, []);
+            }).then(preview => {
+                if (!preview || !Array.isArray(preview.materials)) throw new Error("Сервер не вернул результат проверки XML-спецификации.");
+                this.previewMaterials = preview.materials || [];
+                this.importInfo = preview.importInfo || this.importInfo;
+                this.renderPreview(this.previewMaterials);
+                button.textContent = "Импортировать";
+            }).catch(error => QueueView.showMessage(error))
+                .finally(() => { button.disabled = false; if (!this.previewMaterials) button.textContent = "Проверить материалы"; });
+            return;
+        }
+        if (!this.importTables) {
+            button.textContent = "Ищем таблицы…";
+            this.encodeFile(file).then(base64 => {
+                request.base64 = base64;
+                return QueueController.analyzeSupplySpecification(request, orderKey);
+            }).then(analysis => {
+                if (!analysis || !Array.isArray(analysis.candidates)) {
+                    throw new Error("Сервер не вернул результат анализа спецификации.");
+                }
+                this.importTables = analysis.candidates || [];
+                this.renderImportTables(this.importTables);
+                button.textContent = "Проверить материалы";
+            }).catch(error => QueueView.showMessage(error))
+                .finally(() => { button.disabled = false; if (!this.importTables) button.textContent = "Найти таблицы"; });
+            return;
+        }
+        const selections = this.getSelectedImportTables();
+        if (!selections.length) {
+            button.disabled = false;
+            return QueueView.showMessage(new Error("Выберите хотя бы одну таблицу материалов."));
+        }
+        button.textContent = "Проверяем…";
+        this.encodeFile(file).then(base64 => {
+            request.base64 = base64;
+            return QueueController.previewSupplySpecification(request, orderKey, selections);
+        }).then(preview => {
+            if (!preview || !Array.isArray(preview.materials)) {
+                throw new Error("Сервер не вернул результат проверки спецификации.");
+            }
+            this.previewMaterials = preview.materials || [];
+            this.renderPreview(this.previewMaterials);
+            button.textContent = "Импортировать";
+        }).catch(error => QueueView.showMessage(error))
+            .finally(() => { button.disabled = false; if (!this.previewMaterials) button.textContent = "Проверить материалы"; });
+    }
+
+    static encodeFile(file) {
+        return file.arrayBuffer().then(buffer => {
+            const bytes = new Uint8Array(buffer);
+            let binary = "";
+            const chunk = 0x8000;
+            for (let index = 0; index < bytes.length; index += chunk) {
+                binary += String.fromCharCode.apply(null, bytes.subarray(index, Math.min(index + chunk, bytes.length)));
+            }
+            return window.btoa(binary);
+        });
+    }
+
+    static renderPreview(materials) {
+        const container = document.getElementById("supplyPreviewContainer");
+        const quantityWarnings = this.importInfo && Array.isArray(this.importInfo.quantityWarnings) ? this.importInfo.quantityWarnings : [];
+        const warnings = quantityWarnings.length ? `<div class="supply-import-warning"><strong>Предупреждения импорта:</strong><ul>${quantityWarnings.map(warning => `<li>${this.escape(warning)}</li>`).join("")}</ul></div>` : "";
+        const rows = materials.map((item, index) => {
+            const source = item.productUrl ? `<a href="${this.escape(item.productUrl)}" target="_blank" rel="noopener">${this.escape(item.matchMethod || "ITKT")}</a>` : this.escape(item.matchMethod || "—");
+            const articleMatched = /артикул/i.test(String(item.matchMethod || "")) && !item.supplierManual;
+            const purchaseAmount = Number(item.purchaseQuantity);
+            const purchase = Number.isFinite(purchaseAmount) && purchaseAmount > 0 && item.purchaseUnit ? `${this.escape(item.purchaseQuantity)} · ${this.escape(item.purchaseUnit)}` : "—";
+            const name = `${this.escape(item.name)}${item.matchStatus === "ANALOG" ? '<div class="supply-version-warning">Аналог — проверить</div>' : ""}`;
+            const verified = (Boolean(item.xmlCandidateVerified) || Boolean(item.mappingApplied)) && !item.supplierManual;
+            const articleClass = verified ? "xml-preview-article" : "xml-preview-article needs-check";
+            const supplierOptions = [...new Set([...(Store.state.dictionaries?.suppliers || []), item.supplier || ""])]
+                .filter(Boolean).sort((left, right) => left.localeCompare(right, "ru"));
+            const supplierSelect = `<select class="xml-preview-supplier" data-xml-preview-supplier="${index}"><option value="">Не определён</option>${supplierOptions.map(supplier => `<option value="${this.escape(supplier)}"${supplier === item.supplier ? " selected" : ""}>${this.escape(supplier)}</option>`).join("")}</select>`;
+            const articleInput = `<input class="${articleClass}" data-xml-preview-article="${index}" value="${this.escape(item.article || "")}" aria-label="Артикул: ${this.escape(item.name)}">`;
+            return `<tr class="${articleMatched ? "supply-article-matched" : ""}"><td>${index + 1}</td><td>${articleInput}</td><td>${name}</td><td>${this.escape(item.quantity)}</td><td>${this.escape(item.unit)}</td><td>${purchase}</td><td>${this.escape(item.sourceSupplier || item.manufacturer || "—")}</td><td>${supplierSelect}</td><td>${source}</td></tr>`;
+        }).join("");
+        container.innerHTML = `${warnings}<table><thead><tr><th>#</th><th>Артикул</th><th>Материал</th><th>Кол-во</th><th>Ед.</th><th>К закупке</th><th>Поставщик в файле</th><th>Сопоставленный поставщик</th><th>Основание</th></tr></thead><tbody>${rows}</tbody></table>`;
+        container.querySelectorAll("[data-xml-preview-supplier]").forEach(select => {
+            select.onchange = () => {
+                const item = this.previewMaterials[Number(select.dataset.xmlPreviewSupplier)];
+                if (!item) return;
+                item.supplier = select.value;
+                item.consumableManual = select.value === "Расходники";
+                if (item.consumableManual) {
+                    item.category = "Расходники";
+                    item.price = "";
+                    item.productUrl = "";
+                    item.matchMethod = "Расходник · вручную";
+                } else if (item.category === "Расходники") {
+                    item.category = "";
+                }
+                item.supplierManual = select.value !== String(item.xmlVerifiedSupplier || "");
+                if (item.supplierManual && !item.consumableManual) {
+                    item.matchMethod = item.matchStatus ? `XML: ${item.matchStatus} · вручную` : "XML: вручную";
+                    item.productUrl = "";
+                }
+                this.renderPreview(this.previewMaterials);
+            };
+        });
+        container.querySelectorAll("[data-xml-preview-article]").forEach(input => {
+            input.onchange = () => {
+                const item = this.previewMaterials[Number(input.dataset.xmlPreviewArticle)];
+                if (!item) return;
+                item.article = input.value.trim();
+                if (item.article !== String(item.xmlVerifiedArticle || "")) {
+                    item.supplierManual = true;
+                    item.matchMethod = item.matchStatus ? `XML: ${item.matchStatus} · вручную` : "XML: вручную";
+                    item.productUrl = "";
+                }
+                this.renderPreview(this.previewMaterials);
+            };
+        });
+        container.classList.remove("hidden");
+    }
+
+    static resetPreview() {
+        this.previewMaterials = null;
+        this.importTables = null;
+        const tables = document.getElementById("supplyTablesContainer");
+        if (tables) { tables.innerHTML = ""; tables.classList.add("hidden"); }
+        const container = document.getElementById("supplyPreviewContainer");
+        if (container) { container.innerHTML = ""; container.classList.add("hidden"); }
+        const button = document.getElementById("confirmSupplyImport");
+        if (button) button.textContent = this.importFormat === "xml" ? "Проверить материалы" : "Найти таблицы";
+    }
+
+    static setImportOrderHint(message) {
+        const hint = document.getElementById("supplyImportOrderHint");
+        if (!hint) return;
+        hint.textContent = message || "";
+        hint.classList.toggle("hidden", !message);
+    }
+
+    static renderImportTables(tables) {
+        const container = document.getElementById("supplyTablesContainer");
+        container.innerHTML = `<h3>Найдены закупочные таблицы</h3>${tables.map((table, index) => {
+            const options = [{ index: -1, label: "Не использовать" }].concat(table.columns || []);
+            return `<label class="supply-table-choice"><input type="checkbox" data-supply-table="${this.escape(table.id)}" ${index === 0 ? "checked" : ""}>
+                <span><strong>${this.escape(table.sheetName)}</strong><br>Строка заголовка: ${this.escape(table.headerRow)} · позиций: ${this.escape(table.rowCount)} · ${this.escape(table.confidence)} уверенность</span>
+                <select data-supply-table-supplier="${this.escape(table.id)}" title="Колонка исходного поставщика">${options.map(option => `<option value="${option.index}"${Number(option.index) === Number(table.supplierColumn) ? " selected" : ""}>Поставщик: ${this.escape(option.label)}</option>`).join("")}</select>
+                ${table.warnings?.length ? `<span class="supply-table-warning">${this.escape(table.warnings.join(" "))}</span>` : ""}</label>`;
+        }).join("")}`;
+        container.classList.remove("hidden");
+    }
+
+    static getSelectedImportTables() {
+        const selected = [];
+        document.querySelectorAll("[data-supply-table]").forEach(input => {
+            if (!input.checked) return;
+            const supplier = document.querySelector(`[data-supply-table-supplier="${CSS.escape(input.dataset.supplyTable)}"]`);
+            selected.push({ id: input.dataset.supplyTable, supplierColumn: Number(supplier?.value) });
+        });
+        return selected;
+    }
+
+    static closeImport() {
+        document.getElementById("supplyImportModal").classList.add("hidden");
+        document.getElementById("supplyFileInput").value = "";
+        this.pendingFile = null;
+        this.importFormat = "";
+        this.importInfo = null;
+        this.setImportOrderHint("");
+        this.resetPreview();
+    }
+
+    static changeStatus(rowId, direction) {
+        QueueController.changePurchaseStatus(rowId, direction).catch(error => QueueView.showMessage(error));
+    }
+
+    static setStatus(rowId, status) {
+        QueueController.setPurchaseStatus(rowId, status).catch(error => QueueView.showMessage(error));
+    }
+
+    static assignSupplier(rowId, supplier) {
+        QueueController.assignSupplySupplier(rowId, supplier).catch(error => QueueView.showMessage(error));
+    }
+
+    static deleteMaterial(rowId, name) {
+        this.showSupplyDialog("Удалить материал?", `Удалить материал «${name}» из заказа?`, { confirmText: "Удалить" }).then(confirmed => {
+            if (confirmed) QueueController.deleteSupplyMaterial(rowId).catch(error => QueueView.showMessage(error));
+        });
+    }
+
+    static openClearSupplyOrder() {
+        QueueController.getSupplyOrderDirectory().then(orders => {
+            if (!Array.isArray(orders) || !orders.length) throw new Error("В листе «Изделия» нет заказов для очистки.");
+            const select = document.getElementById("clearSupplyOrderSelect");
+            const confirm = document.getElementById("confirmClearSupplyOrder");
+            select.innerHTML = `<option value="">Выберите изделие…</option>${orders.map(order => `<option value="${this.escape(order.key)}">${this.escape(order.contract)} · ${this.escape(order.client)} · ${this.escape(order.product)}</option>`).join("")}`;
+            select.value = "";
+            confirm.disabled = true;
+            select.onchange = () => { confirm.disabled = !select.value; };
+            document.getElementById("clearSupplyOrderModal").classList.remove("hidden");
+        }).catch(error => QueueView.showMessage(error));
+    }
+
+    static closeClearSupplyOrder() {
+        document.getElementById("clearSupplyOrderModal").classList.add("hidden");
+    }
+
+    static confirmClearSupplyOrder() {
+        const select = document.getElementById("clearSupplyOrderSelect");
+        const orderKey = select.value;
+        const orderName = select.options[select.selectedIndex]?.text || "выбранного изделия";
+        if (!orderKey) return QueueView.showMessage(new Error("Выберите изделие в списке."));
+        this.showSupplyDialog("Очистить материалы заказа?", `Удалить все материалы для «${orderName}»? Это действие нельзя отменить.`, { confirmText: "Очистить" }).then(confirmed => {
+            if (!confirmed) return;
+            QueueController.clearSupplyOrderMaterials(orderKey).then(result => {
+                this.closeClearSupplyOrder();
+                const removed = result || {};
+                this.showSupplyDialog("Материалы очищены", `Удалено из снабжения: ${removed.removedSupply || 0}; из плитных материалов: ${removed.removedPlate || 0}.`, { confirmText: "Понятно" });
+            }).catch(error => QueueView.showMessage(error));
+        });
+    }
+
+    static openSupplierOrders() {
+        this.renderSupplierOrders();
+        this.resetSupplierOrderPicker();
+        document.getElementById("supplierOrderDetails").classList.add("hidden");
+        document.getElementById("supplierOrdersModal").classList.remove("hidden");
+
+        // Кнопка открыта из очереди снабжения: переносим в форму выбранного
+        // фильтром поставщика и сразу подбираем его новые позиции.
+        const supplier = Store.getSelectedUser();
+        const availableSuppliers = (Store.state.dictionaries?.suppliers || [])
+            .filter(item => item && item !== "Расходники");
+        if (availableSuppliers.includes(supplier)) {
+            document.getElementById("supplierOrderSupplier").value = supplier;
+            this.renderSupplierOrders();
+            this.loadSupplierOrderCandidates();
+        }
+    }
+
+    static closeSupplierOrders() {
+        document.getElementById("supplierOrdersModal").classList.add("hidden");
+    }
+
+    static renderSupplierOrders() {
+        const select = document.getElementById("supplierOrderSupplier");
+        const suppliers = (Store.state.dictionaries?.suppliers || []).filter(supplier => supplier && supplier !== "Расходники");
+        const currentSupplier = select.value;
+        select.innerHTML = `<option value="">Выберите поставщика</option>${suppliers.map(supplier => `<option value="${this.escape(supplier)}"${supplier === currentSupplier ? " selected" : ""}>${this.escape(supplier)}</option>`).join("")}`;
+        const list = document.getElementById("supplierOrdersList");
+        const selectedSupplier = String(select.value || "").trim();
+        if (!selectedSupplier) {
+            list.innerHTML = `<div class="supply-empty">Выберите поставщика, чтобы увидеть его заказы.</div>`;
+            return;
+        }
+        const orders = (Store.state.dictionaries?.supplierOrders || []).filter(order =>
+            String(order.supplier || "").trim().toLocaleLowerCase("ru-RU") === selectedSupplier.toLocaleLowerCase("ru-RU")
+        );
+        if (!orders.length) {
+            list.innerHTML = `<div class="supply-empty">У выбранного поставщика пока нет заказов.</div>`;
+            return;
+        }
+        list.innerHTML = `<table><thead><tr><th>Номер</th><th>Поставщик</th><th>Заказ клиента</th><th>Статус</th><th>Создан</th><th>Позиций</th><th>Сумма</th><th></th></tr></thead><tbody>${orders.map(order => `<tr>
+            <td>${this.escape(order.number)}</td><td>${this.escape(order.supplier)}</td><td class="supplier-order-products-cell">${Array.isArray(order.products) && order.products.length ? `<div class="supplier-order-products-list">${order.products.map(product => `<span>${this.escape(product)}</span>`).join("")}</div>` : "—"}</td><td>${this.escape(order.status)}</td>
+            <td>${this.escape(QueueView.formatDeadline(order.createdAt))}</td><td>${this.escape(order.lineCount)}</td><td>${order.total === "" || order.total === null ? "—" : Number(order.total).toLocaleString("ru-RU", { maximumFractionDigits: 2 }) + " ₽"}</td>
+            <td><button class="reset-btn" data-supplier-order-details="${this.escape(order.id)}">Состав</button></td></tr>`).join("")}</tbody></table>`;
+        list.querySelectorAll("[data-supplier-order-details]").forEach(button => {
+            button.onclick = () => this.openSupplierOrderDetails(button.dataset.supplierOrderDetails);
+        });
+    }
+
+    static resetSupplierOrderPicker() {
+        this.supplierOrderCandidates = [];
+        document.getElementById("supplierOrderPicker").classList.add("hidden");
+        document.getElementById("supplierOrderProducts").innerHTML = "";
+        document.getElementById("supplierOrderCandidates").innerHTML = "";
+        document.getElementById("supplierOrderSearch").value = "";
+    }
+
+    static loadSupplierOrderCandidates() {
+        const supplier = document.getElementById("supplierOrderSupplier").value;
+        if (!supplier) return QueueView.showMessage(new Error("Выберите поставщика."));
+        const button = document.getElementById("loadSupplierOrderCandidates");
+        button.disabled = true;
+        button.textContent = "Подбираем…";
+        QueueController.getSupplierOrderCandidates(supplier).then(data => {
+            this.supplierOrderCandidates = (data.candidates || []).map(item => Object.assign({}, item, { selected: true }));
+            this.renderSupplierOrderProducts(data.products || []);
+            this.renderSupplierOrderCandidates();
+            document.getElementById("supplierOrderPicker").classList.remove("hidden");
+        }).catch(error => QueueView.showMessage(error)).finally(() => {
+            button.disabled = false;
+            button.textContent = "Подобрать позиции";
+        });
+    }
+
+    static renderSupplierOrderProducts(products) {
+        document.getElementById("supplierOrderProducts").innerHTML = products.map(product => `<label class="supplier-order-product"><input type="checkbox" data-supplier-order-product="${this.escape(product.key)}" checked> ${this.escape(product.contract)} · ${this.escape(product.client)} · ${this.escape(product.product)}</label>`).join("");
+        document.querySelectorAll("[data-supplier-order-product]").forEach(input => input.onchange = () => this.renderSupplierOrderCandidates());
+    }
+
+    static visibleSupplierOrderProducts() {
+        return new Set([...document.querySelectorAll("[data-supplier-order-product]:checked")].map(input => input.dataset.supplierOrderProduct));
+    }
+
+    static renderSupplierOrderCandidates() {
+        const products = this.visibleSupplierOrderProducts();
+        const query = String(document.getElementById("supplierOrderSearch").value || "").trim().toLowerCase();
+        const rows = this.supplierOrderCandidates.filter(item => products.has(item.productKey) && (!query || [item.contract, item.client, item.product, item.article, item.name].some(value => String(value || "").toLowerCase().includes(query))));
+        const container = document.getElementById("supplierOrderCandidates");
+        if (!rows.length) container.innerHTML = `<div class="supply-empty">Нет позиций по выбранному фильтру.</div>`;
+        else container.innerHTML = `<table><thead><tr><th></th><th>Договор</th><th>Клиент</th><th>Изделие</th><th>Артикул</th><th>Наименование</th><th>Кол-во</th><th>Ед.</th><th>Цена</th><th>Сумма</th></tr></thead><tbody>${rows.map(item => `<tr><td><input type="checkbox" data-supplier-order-row="${this.escape(item.rowId)}"${item.selected ? " checked" : ""}></td><td>${this.escape(item.contract)}</td><td>${this.escape(item.client)}</td><td>${this.escape(item.product)}</td><td>${this.escape(item.article || "—")}</td><td>${this.escape(item.name)}</td><td>${this.escape(item.quantity)}</td><td>${this.escape(item.unit)}</td><td>${this.formatSupplierOrderMoney(item.price)}</td><td>${this.formatSupplierOrderMoney(item.total)}</td></tr>`).join("")}</tbody></table>`;
+        container.querySelectorAll("[data-supplier-order-row]").forEach(input => input.onchange = () => {
+            const item = this.supplierOrderCandidates.find(candidate => candidate.rowId === input.dataset.supplierOrderRow);
+            if (item) item.selected = input.checked;
+            this.updateSupplierOrderSummary();
+        });
+        this.updateSupplierOrderSummary();
+    }
+
+    static formatSupplierOrderMoney(value) {
+        return value === "" || value === null || value === undefined ? "—" : Number(value).toLocaleString("ru-RU", { maximumFractionDigits: 2 }) + " ₽";
+    }
+
+    static updateSupplierOrderSummary() {
+        const selected = this.supplierOrderCandidates.filter(item => item.selected);
+        const unknown = selected.some(item => item.total === "" || item.total === null || item.total === undefined);
+        const total = selected.reduce((sum, item) => sum + (Number(item.total) || 0), 0);
+        document.getElementById("supplierOrderSummary").textContent = `Выбрано: ${selected.length} · Сумма: ${unknown ? "—" : this.formatSupplierOrderMoney(total)}`;
+    }
+
+    static setSupplierOrderRows(selected) {
+        const products = this.visibleSupplierOrderProducts();
+        const query = String(document.getElementById("supplierOrderSearch").value || "").trim().toLowerCase();
+        this.supplierOrderCandidates.forEach(item => {
+            if (products.has(item.productKey) && (!query || [item.contract, item.client, item.product, item.article, item.name].some(value => String(value || "").toLowerCase().includes(query)))) item.selected = selected;
+        });
+        this.renderSupplierOrderCandidates();
+    }
+
+    static selectSupplierOrderProducts() {
+        const products = this.visibleSupplierOrderProducts();
+        this.supplierOrderCandidates.forEach(item => item.selected = products.has(item.productKey));
+        this.renderSupplierOrderCandidates();
+    }
+
+    static createSupplierOrder() {
+        const supplier = document.getElementById("supplierOrderSupplier").value;
+        const rowIds = this.supplierOrderCandidates.filter(item => item.selected).map(item => item.rowId);
+        if (!supplier || !rowIds.length) return QueueView.showMessage(new Error("Выберите хотя бы одну позицию для заказа."));
+        const button = document.getElementById("createSupplierOrder");
+        button.disabled = true;
+        button.textContent = "Формируем…";
+        QueueController.createSupplierOrder(supplier, rowIds).then(result => {
+            this.renderSupplierOrders();
+            this.resetSupplierOrderPicker();
+            return QueueController.load().then(() => {
+                this.renderSupplierOrders();
+                if (Store.getRole() === "supplierOrders") {
+                    this.closeSupplierOrders();
+                    SupplierOrdersView.openDetails(result.id);
+                } else this.openSupplierOrderDetails(result.id);
+            });
+        }).catch(error => QueueView.showMessage(error)).finally(() => { button.disabled = false; button.textContent = "Сформировать заказ"; });
+    }
+
+    static openSupplierOrderDetails(orderId) {
+        QueueController.getSupplierOrderDetails(orderId).then(data => {
+            if (!data || !data.order || !Array.isArray(data.lines)) {
+                throw new Error("Сервер не вернул состав заказа. Обновите очередь и повторите попытку.");
+            }
+            const details = document.getElementById("supplierOrderDetails");
+            const lines = data.lines || [];
+            details.innerHTML = `<h3>${this.escape(data.order.number)} · ${this.escape(data.order.supplier)}</h3><table><thead><tr><th>Артикул</th><th>Наименование</th><th>Кол-во</th><th>Ед.</th><th>Цена</th><th>Сумма</th><th>Изделий</th></tr></thead><tbody>${lines.map(line => `<tr>
+                <td>${this.escape(line.article || "—")}</td><td>${this.escape(line.name)}</td><td>${this.escape(line.quantity)}</td><td>${this.escape(line.unit)}</td>
+                <td>${line.price === "" || line.price === null ? "—" : Number(line.price).toLocaleString("ru-RU", { maximumFractionDigits: 2 })}</td>
+                <td>${line.total === "" || line.total === null ? "—" : Number(line.total).toLocaleString("ru-RU", { maximumFractionDigits: 2 })}</td><td>${this.escape(line.sourceCount)}</td></tr>`).join("")}</tbody></table>`;
+            details.classList.remove("hidden");
+        }).catch(error => QueueView.showMessage(error));
+    }
+
+    static openSuppliers() {
+        const modal = document.getElementById("supplySuppliersModal");
+        QueueController.getSupplySuppliers().then(items => {
+            this.renderSuppliers(items);
+            modal.classList.remove("hidden");
+        }).catch(error => QueueView.showMessage(error));
+    }
+
+    static closeSuppliers() {
+        document.getElementById("supplySuppliersModal").classList.add("hidden");
+    }
+
+    static renderSuppliers(items) {
+        const list = document.getElementById("supplySuppliersList");
+        list.innerHTML = items.length ? `<table><thead><tr><th>Поставщик</th><th>Названия в спецификации</th><th>Источник поиска</th><th>Шаблон сайта</th><th>Используется</th><th></th></tr></thead><tbody>${items.map(item =>
+            `<tr><td>${this.escape(item.name)}</td><td>${this.escape(item.aliases || "—")}</td><td>${item.priceUrl ? `<a href="${this.escape(item.priceUrl)}" target="_blank" rel="noopener">Открыть источник</a>` : "—"}</td><td>${item.searchTemplate ? `<span title="${this.escape(item.searchTemplate)}">Готов</span>` : (item.websiteSource ? "Нужен шаблон" : "—")}</td><td>${item.active ? "Да" : "Нет"}</td><td><button class="reset-btn supplier-edit" data-supplier-name="${this.escape(item.name)}" data-supplier-aliases="${this.escape(item.aliases || "")}" data-supplier-url="${this.escape(item.priceUrl)}" data-supplier-template="${this.escape(item.searchTemplate || "")}" data-supplier-note="${this.escape(item.note)}" data-supplier-active="${item.active}">Изменить</button><button class="reset-btn supplier-remove" data-supplier-name="${this.escape(item.name)}">Удалить</button></td></tr>`).join("")}</tbody></table>` : `<div class="supply-empty">Поставщики ещё не добавлены.</div>`;
+        list.querySelectorAll(".supplier-edit").forEach(button => {
+            button.onclick = () => {
+                document.getElementById("supplierNameInput").value = button.dataset.supplierName;
+                document.getElementById("supplierAliasesInput").value = button.dataset.supplierAliases;
+                document.getElementById("supplierPriceUrlInput").value = button.dataset.supplierUrl;
+                document.getElementById("supplierSearchTemplateInput").value = button.dataset.supplierTemplate;
+                document.getElementById("supplierNoteInput").value = button.dataset.supplierNote;
+                document.getElementById("supplierActiveInput").checked = button.dataset.supplierActive === "true";
+            };
+        });
+        list.querySelectorAll(".supplier-remove").forEach(button => {
+            button.onclick = () => {
+                const name = button.dataset.supplierName;
+                this.showSupplyDialog("Удалить поставщика?", `Удалить поставщика «${name}»?`, { confirmText: "Удалить" }).then(confirmed => {
+                    if (confirmed) QueueController.deleteSupplySupplier(name).then(updated => this.renderSuppliers(updated)).catch(error => QueueView.showMessage(error));
+                });
+            };
+        });
+    }
+
+    static saveSupplier() {
+        const supplier = {
+            name: document.getElementById("supplierNameInput").value,
+            aliases: document.getElementById("supplierAliasesInput").value,
+            priceUrl: document.getElementById("supplierPriceUrlInput").value,
+            searchTemplate: document.getElementById("supplierSearchTemplateInput").value,
+            note: document.getElementById("supplierNoteInput").value,
+            active: document.getElementById("supplierActiveInput").checked
+        };
+        QueueController.saveSupplySupplier(supplier).then(items => {
+            this.renderSuppliers(items);
+            document.getElementById("supplierNameInput").value = "";
+            document.getElementById("supplierAliasesInput").value = "";
+            document.getElementById("supplierPriceUrlInput").value = "";
+            document.getElementById("supplierSearchTemplateInput").value = "";
+            document.getElementById("supplierNoteInput").value = "";
+            document.getElementById("supplierActiveInput").checked = true;
+        }).catch(error => QueueView.showMessage(error));
+    }
+
+    static openConsumablesMapping() {
+        QueueController.getConsumableCandidates().then(data => {
+            const list = document.getElementById("consumablesCandidatesList");
+            const existing = (data.consumables || []).filter(item => item.consumable)
+                .sort((left, right) => left.name.localeCompare(right.name, "ru"));
+            const candidatesHtml = data.candidates.length ? `<table><thead><tr><th>Материал</th><th>Расходник</th><th>Плитный материал</th><th>Артикул</th><th>В заказах</th></tr></thead><tbody>${data.candidates.map(item => { const key = item.article || item.name; const data = `data-route-key="${this.escape(key)}" data-route-name="${this.escape(item.name)}" data-route-article="${this.escape(item.article || "")}"`; return `<tr><td>${this.escape(item.name)}</td><td><input type="checkbox" data-route-consumable ${data} ${item.consumable ? "checked" : ""}></td><td><input type="checkbox" data-route-plate ${data} ${item.plate ? "checked" : ""}></td><td>${this.escape(item.article || "—")}</td><td>${item.count}</td></tr>`; }).join("")}</tbody></table>` : `<div class="supply-empty">Непоставленных материалов для сопоставления нет.</div>`;
+            const existingHtml = existing.length ? `<section class="consumables-existing"><strong>Уже отмеченные расходники</strong><ul>${existing.map(item => `<li>${this.escape(item.name)}</li>`).join("")}</ul></section>` : "";
+            list.innerHTML = candidatesHtml + existingHtml;
+            document.getElementById("consumablesMappingModal").classList.remove("hidden");
+        }).catch(error => QueueView.showMessage(error));
+    }
+
+    static closeConsumablesMapping() {
+        document.getElementById("consumablesMappingModal").classList.add("hidden");
+    }
+
+    static saveConsumablesMapping() {
+        const controls = [...document.querySelectorAll("[data-route-key]")];
+        const keys = [...new Set(controls.map(input => input.dataset.routeKey))];
+        const routes = keys.map(key => {
+            const control = controls.find(input => input.dataset.routeKey === key);
+            return {
+                name: control?.dataset.routeName || "", article: control?.dataset.routeArticle || "",
+                consumable: Boolean(document.querySelector(`[data-route-consumable][data-route-key="${CSS.escape(key)}"]`)?.checked),
+                plate: Boolean(document.querySelector(`[data-route-plate][data-route-key="${CSS.escape(key)}"]`)?.checked)
+            };
+        });
+        QueueController.saveMaterialRoutes(routes).then(result => {
+            this.closeConsumablesMapping();
+            this.showSupplyDialog("Расходники сохранены", `Добавлено расходников: ${result.added}.`, { confirmText: "Понятно" });
+        }).catch(error => QueueView.showMessage(error));
+    }
+
+    static loadExpoCatalog(button) {
+        let added = 0;
+        button.disabled = true;
+        button.textContent = "Загружаем…";
+        const next = () => QueueController.importExpoCatalog().then(result => {
+            added += Number(result.added || 0);
+            button.textContent = `Загружаем… +${added}`;
+            if (!result.done) return next();
+            return this.showSupplyDialog("Каталог Expo", `Загружено позиций: ${added}.`, { confirmText: "Понятно" });
+        });
+        return next().catch(error => QueueView.showMessage(error)).finally(() => {
+            button.disabled = false;
+            button.textContent = "⇩ Загрузить каталог Expo";
+        });
+    }
+
+    static searchUnmatchedArticles(button) {
+        const selectedSupplier = String(Store.getSelectedUser() || "").trim();
+        if (selectedSupplier === "__supply_other__" || selectedSupplier === "Расходники") {
+            QueueView.showMessage(new Error("Для поиска выберите конкретного поставщика или фильтр «Все»."));
+            return;
+        }
+        const scope = selectedSupplier ? `только у поставщика «${selectedSupplier}»` : "по всем поставщикам";
+        this.showSupplyDialog("Поиск артикулов", `Повторно проверить несопоставленные позиции ${scope}? Расходники и вручную назначенные поставщики не изменятся.`, { confirmText: "Искать" }).then(confirmed => {
+            if (!confirmed) return;
+            const initialText = button.textContent;
+            button.disabled = true;
+            button.textContent = "Ищем…";
+            QueueController.searchSupplyArticles(selectedSupplier).then(result => {
+                const resultScope = result.supplier ? ` у поставщика «${result.supplier}»` : " по всем поставщикам";
+                this.showSupplyDialog("Поиск завершён", `Поиск выполнен${resultScope}. Проверено позиций: ${result.checked}. Найдено сопоставлений: ${result.matched}.`, { confirmText: "Понятно" });
+            }).catch(error => QueueView.showMessage(error)).finally(() => {
+                button.disabled = false;
+                button.textContent = initialText;
+            });
+        });
+    }
+
+    static showSupplyDialog(title, message, options = {}) {
+        return new Promise(resolve => {
+            const modal = document.getElementById("supplyDialogModal");
+            const confirm = document.getElementById("supplyDialogConfirm");
+            const cancel = document.getElementById("supplyDialogCancel");
+            document.getElementById("supplyDialogTitle").textContent = title;
+            document.getElementById("supplyDialogText").textContent = message;
+            confirm.textContent = options.confirmText || "Продолжить";
+            cancel.classList.toggle("hidden", options.cancel === false || options.confirmText === "Понятно");
+            const close = value => {
+                modal.classList.add("hidden");
+                confirm.onclick = null;
+                cancel.onclick = null;
+                resolve(value);
+            };
+            confirm.onclick = () => close(true);
+            cancel.onclick = () => close(false);
+            modal.classList.remove("hidden");
+        });
+    }
+
+    static escape(value) {
+        return String(value === null || value === undefined ? "" : value)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/\"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+}
+</script>

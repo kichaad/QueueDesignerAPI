@@ -1,0 +1,12 @@
+{
+  "private": true,
+  "scripts": {
+    "login": "clasp -A ./.clasprc.json login",
+    "pull": "clasp -A ./.clasprc.json pull",
+    "status": "clasp -A ./.clasprc.json status",
+    "push": "clasp -A ./.clasprc.json push"
+  },
+  "devDependencies": {
+    "@google/clasp": "^3.4.1"
+  }
+}

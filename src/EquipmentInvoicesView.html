@@ -1,0 +1,126 @@
+<script>
+class EquipmentInvoicesView {
+    static initialized = false;
+    static invoices = [];
+    static candidates = [];
+    static filePayload = null;
+
+    static init() {
+        if (this.initialized) return;
+        this.initialized = true;
+        document.getElementById("equipmentInvoicesBtn").onclick = () => QueueController.setRole("equipmentInvoices");
+        document.getElementById("backToEquipmentBtn").onclick = () => QueueController.setRole("equipment");
+        document.getElementById("addEquipmentInvoiceBtn").onclick = () => this.openCreate();
+        document.getElementById("cancelEquipmentInvoice").onclick = () => this.close();
+        document.getElementById("saveEquipmentInvoice").onclick = () => this.save();
+        document.getElementById("markEquipmentInvoicePaid").onclick = () => this.markPaid();
+        document.getElementById("equipmentInvoiceFile").onchange = event => this.loadFile(event.target.files && event.target.files[0]);
+        ["equipmentInvoiceSearch", "equipmentInvoiceSupplierFilter", "equipmentInvoiceStatusFilter"].forEach(id => {
+            const control = document.getElementById(id);
+            control.oninput = () => QueueView.render(); control.onchange = () => QueueView.render();
+        });
+    }
+
+    static toggle(visible) {
+        document.getElementById("equipmentInvoicesToolbar").classList.toggle("hidden", !visible);
+        document.body.classList.toggle("equipment-invoices-section-active", visible);
+    }
+
+    static initFilters() {
+        const title = document.getElementById("filterTitle");
+        const panel = document.getElementById("userButtons");
+        if (title) title.textContent = "🧾 Счета техники";
+        if (panel) panel.innerHTML = "";
+    }
+
+    static render(items) {
+        this.invoices = items || [];
+        this.renderSupplierFilter();
+        const filtered = this.filtered();
+        const total = document.getElementById("totalOrders");
+        if (total) total.textContent = `Счетов техники: ${filtered.length} · ${this.money(filtered.reduce((sum, item) => sum + Number(item.amount || 0), 0))}`;
+        const container = document.getElementById("ordersContainer");
+        if (!filtered.length) { container.innerHTML = `<div class="block"><div class="supply-empty">Счетов техники пока нет. Нажмите «Добавить счёт».</div></div>`; return; }
+        container.innerHTML = `<div class="block equipment-invoice-list">${filtered.map(invoice => `<article class="equipment-invoice-card">
+            <div><strong>Счёт №${this.escape(invoice.number)}</strong><span class="equipment-invoice-status ${invoice.paymentStatus === "Оплачен" ? "paid" : ""}">${this.escape(invoice.paymentStatus)}</span></div>
+            <div>${this.escape(invoice.date || "Дата не указана")} · ${this.escape(invoice.supplier)} · <b>${this.money(invoice.amount)}</b></div>
+            <div class="equipment-invoice-card-lines">${invoice.lines.map(line => `${this.escape(line.contract)} · ${this.escape(line.name)}${line.model ? " — " + this.escape(line.model) : ""}`).join("<br>")}</div>
+            <div class="equipment-invoice-card-actions"><a href="https://drive.google.com/open?id=${this.escape(invoice.fileId)}" target="_blank" rel="noopener">Открыть файл</a><button class="reset-btn" data-equipment-invoice-open="${this.escape(invoice.id)}">Карточка</button>${invoice.paymentStatus !== "Оплачен" ? `<button class="reset-btn" data-equipment-invoice-pay="${this.escape(invoice.id)}">Оплатить</button>` : ""}</div>
+        </article>`).join("")}</div>`;
+        container.querySelectorAll("[data-equipment-invoice-open]").forEach(button => button.onclick = () => this.openDetail(button.dataset.equipmentInvoiceOpen));
+        container.querySelectorAll("[data-equipment-invoice-pay]").forEach(button => button.onclick = () => this.pay(button.dataset.equipmentInvoicePay));
+    }
+
+    static filtered() {
+        const query = String(document.getElementById("equipmentInvoiceSearch").value || "").toLowerCase().trim();
+        const supplier = document.getElementById("equipmentInvoiceSupplierFilter").value;
+        const status = document.getElementById("equipmentInvoiceStatusFilter").value;
+        return this.invoices.filter(invoice => {
+            if (supplier && invoice.supplier !== supplier) return false;
+            if (status && invoice.paymentStatus !== status) return false;
+            if (!query) return true;
+            return [invoice.number, invoice.supplier].concat(invoice.lines.flatMap(line => [line.contract, line.client, line.name, line.model])).some(value => String(value || "").toLowerCase().includes(query));
+        });
+    }
+
+    static renderSupplierFilter() {
+        const control = document.getElementById("equipmentInvoiceSupplierFilter"); const selected = control.value;
+        const suppliers = [...new Set(this.invoices.map(invoice => invoice.supplier).filter(Boolean))].sort((a,b) => a.localeCompare(b,"ru"));
+        control.innerHTML = `<option value="">Все поставщики</option>${suppliers.map(value => this.option(value, selected)).join("")}`;
+    }
+
+    static openCreate() {
+        this.candidates = []; this.filePayload = null;
+        document.getElementById("equipmentInvoiceModalTitle").textContent = "Новый счёт техники";
+        document.getElementById("equipmentInvoiceId").value = "";
+        document.getElementById("equipmentInvoiceNumber").value = "";
+        document.getElementById("equipmentInvoiceDate").value = new Date().toISOString().slice(0, 10);
+        document.getElementById("equipmentInvoiceSupplier").value = "";
+        document.getElementById("equipmentInvoiceAmount").value = "";
+        document.getElementById("equipmentInvoiceStatus").value = "Счёт";
+        document.getElementById("equipmentInvoiceFile").value = "";
+        document.getElementById("equipmentInvoiceSupplierList").innerHTML = (Store.state.dictionaries.suppliers || []).map(value => `<option value="${this.escape(value)}"></option>`).join("");
+        document.getElementById("equipmentInvoiceLines").innerHTML = "";
+        document.getElementById("equipmentInvoiceHint").textContent = "Выберите файл счёта, затем отметьте позиции и укажите цены.";
+        document.getElementById("saveEquipmentInvoice").classList.remove("hidden"); document.getElementById("markEquipmentInvoicePaid").classList.add("hidden");
+        document.getElementById("equipmentInvoiceModal").classList.remove("hidden");
+    }
+
+    static loadFile(file) {
+        if (!file) return; if (file.size > 10 * 1024 * 1024) return QueueView.showMessage("Размер счёта не должен превышать 10 МБ.");
+        const reader = new FileReader();
+        reader.onload = () => {
+            this.filePayload = { name: file.name, mimeType: file.type, base64: String(reader.result || "").split(",")[1] || "" };
+            QueueController.previewEquipmentInvoice(this.filePayload).then(result => {
+                this.candidates = result.candidates || []; this.renderLinePicker();
+                document.getElementById("equipmentInvoiceHint").textContent = `Файл «${file.name}» выбран. Отметьте позиции из счёта.`;
+            }).catch(error => QueueView.showMessage(error));
+        };
+        reader.readAsDataURL(file);
+    }
+
+    static renderLinePicker(lines) {
+        const source = lines || this.candidates;
+        const holder = document.getElementById("equipmentInvoiceLines");
+        holder.innerHTML = source.length ? `<table class="supply-table equipment-invoice-line-table"><thead><tr><th></th><th>Договор</th><th>Клиент</th><th>Техника</th><th>Модель</th><th>Кол-во</th><th>Цена, ₽</th></tr></thead><tbody>${source.map(item => {
+            const checked = Boolean(item.checked || lines); const quantity = item.invoiceQuantity || item.quantity || 1; const price = item.invoiceUnitPrice !== undefined ? item.invoiceUnitPrice : (item.unitPrice || "");
+            return `<tr><td><input type="checkbox" data-invoice-item="${this.escape(item.id)}"${checked ? " checked" : ""}></td><td>${this.escape(item.contract)}</td><td>${this.escape(item.client)}</td><td>${this.escape(item.name)}</td><td>${this.escape(item.model)}</td><td><input type="number" min="1" step="1" value="${this.escape(quantity)}" data-invoice-quantity="${this.escape(item.id)}"></td><td><input type="number" min="0" step="0.01" value="${this.escape(price)}" data-invoice-price="${this.escape(item.id)}"></td></tr>`;
+        }).join("")}</tbody></table>` : `<div class="supply-empty">Сначала выберите файл счёта.</div>`;
+    }
+
+    static collectLines() { return this.candidates.filter(item => document.querySelector(`[data-invoice-item="${CSS.escape(item.id)}"]`)?.checked).map(item => ({ equipmentId: item.id, quantity: document.querySelector(`[data-invoice-quantity="${CSS.escape(item.id)}"]`).value, unitPrice: document.querySelector(`[data-invoice-price="${CSS.escape(item.id)}"]`).value })); }
+    static save() {
+        const lines = this.collectLines();
+        const payload = { number: document.getElementById("equipmentInvoiceNumber").value, date: document.getElementById("equipmentInvoiceDate").value, supplier: document.getElementById("equipmentInvoiceSupplier").value, amount: document.getElementById("equipmentInvoiceAmount").value, paymentStatus: document.getElementById("equipmentInvoiceStatus").value, file: this.filePayload, lines: lines };
+        const button = document.getElementById("saveEquipmentInvoice"); button.disabled = true;
+        QueueController.saveEquipmentInvoice(payload).then(() => this.close()).catch(error => QueueView.showMessage(error)).finally(() => button.disabled = false);
+    }
+    static openDetail(id) { QueueController.getEquipmentInvoiceDetail(id).then(invoice => { this.openCreate(); document.getElementById("equipmentInvoiceModalTitle").textContent = `Счёт №${invoice.number}`; ["equipmentInvoiceNumber","equipmentInvoiceDate","equipmentInvoiceSupplier","equipmentInvoiceAmount","equipmentInvoiceStatus"].forEach(key => document.getElementById(key).disabled = true); document.getElementById("equipmentInvoiceNumber").value=invoice.number; document.getElementById("equipmentInvoiceDate").value=invoice.date; document.getElementById("equipmentInvoiceSupplier").value=invoice.supplier; document.getElementById("equipmentInvoiceAmount").value=invoice.amount; document.getElementById("equipmentInvoiceStatus").value=invoice.paymentStatus; document.getElementById("equipmentInvoiceFile").parentElement.classList.add("hidden"); this.candidates=invoice.lines.map(line => Object.assign({}, line, { id: line.equipmentId, checked:true, invoiceQuantity:line.quantity, invoiceUnitPrice:line.unitPrice })); this.renderLinePicker(this.candidates); document.getElementById("saveEquipmentInvoice").classList.add("hidden"); document.getElementById("markEquipmentInvoicePaid").classList.toggle("hidden", invoice.paymentStatus === "Оплачен"); document.getElementById("equipmentInvoiceId").value=invoice.id; }).catch(error => QueueView.showMessage(error)); }
+    static pay(id) { if (!confirm("Отметить счёт и все связанные позиции техники как оплаченные?")) return; QueueController.markEquipmentInvoicePaid(id).catch(error => QueueView.showMessage(error)); }
+    static markPaid() { this.pay(document.getElementById("equipmentInvoiceId").value); }
+    static close() { document.getElementById("equipmentInvoiceModal").classList.add("hidden"); ["equipmentInvoiceNumber","equipmentInvoiceDate","equipmentInvoiceSupplier","equipmentInvoiceAmount","equipmentInvoiceStatus"].forEach(key => document.getElementById(key).disabled=false); document.getElementById("equipmentInvoiceFile").parentElement.classList.remove("hidden"); }
+    static money(value) { return new Intl.NumberFormat("ru-RU", { style:"currency", currency:"RUB" }).format(Number(value || 0)); }
+    static option(value, selected) { return `<option value="${this.escape(value)}"${value === selected ? " selected" : ""}>${this.escape(value)}</option>`; }
+    static escape(value) { return String(value === null || value === undefined ? "" : value).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;"); }
+}
+</script>

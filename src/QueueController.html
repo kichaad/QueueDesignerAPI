@@ -1,0 +1,478 @@
+<script>
+
+class QueueController {
+
+
+    static load() {
+        return Store.loadOrders();
+
+    }
+
+    static applyActionSnapshot(response) {
+        if (!response) {
+            throw new Error("Сервер не вернул обновлённую очередь.");
+        }
+        if (!Store.validateAppVersion(response.appVersion)) {
+            throw new Error("APP_VERSION_MISMATCH|client=" + String(window.APP_VERSION || "unknown") + "|server=" + String(response.appVersion || "unknown"));
+        }
+        if (response.patch) Store.applyActionPatch(response.patch);
+        else if (response.snapshot) Store.applyActionSnapshot(response.snapshot);
+        else throw new Error("Сервер не вернул обновлённую очередь.");
+        return response.result;
+    }
+
+    static runQueueAction(request) {
+        const startedAt = performance.now();
+        return request.then(response => {
+            const responseAt = performance.now();
+            const result = this.applyActionSnapshot(response);
+            console.info("QUEUE_PERF", {
+                roundTripMs: Math.round(responseAt - startedAt),
+                renderMs: Math.round(performance.now() - responseAt),
+                server: response.performance || null
+            });
+            return result;
+        });
+    }
+
+
+
+    static setRole(role) {
+        const previousSection = Store.getSection();
+        const previousRole = Store.getRole();
+        Store.setRole(role);
+        if (Store.getSection() !== previousSection || previousRole !== role) {
+            return Store.loadOrders().catch(error => console.error(error));
+        }
+
+}
+static setSelectedUser(user) {
+
+    Store.setSelectedUser(user);
+
+}
+
+
+    static changeField(
+        key,
+        fieldName,
+        value
+    ){
+
+        console.log(
+            "Change field",
+            fieldName,
+            key,
+            value
+        );
+
+
+        return this.runQueueAction(ApiClient.changeField(
+            key,
+            fieldName,
+            value
+        ))
+
+        .then(()=>{
+
+            console.log(
+                "Поле сохранено:",
+                fieldName
+            );
+
+
+        })
+
+        .catch(error=>{
+
+            console.error(error);
+
+            QueueView.showMessage(error);
+
+        });
+
+    }
+
+    static addOrder(order) {
+        return this.runQueueAction(ApiClient.addOrder(order));
+    }
+
+    static addClaim(data) {
+        return this.runQueueAction(ApiClient.addClaim(data));
+    }
+
+    static moveOrderToDate(key, targetDate) {
+        return this.runQueueAction(ApiClient.moveOrderToDate(key, targetDate));
+    }
+
+    static clearManualOrderDate(key) {
+        return this.runQueueAction(ApiClient.clearManualOrderDate(key));
+    }
+
+    static assignOrderConstructor(key, constructor) {
+        return this.runQueueAction(ApiClient.assignOrderConstructor(key, constructor));
+    }
+
+    static changeWorkStatus(key, action, comment) {
+        return this.runQueueAction(ApiClient.changeWorkStatus(key, action, comment));
+    }
+
+    static changeConstructorTaskDays(key, taskType, days) {
+        return this.runQueueAction(ApiClient.changeConstructorTaskDays(key, taskType, days));
+    }
+
+    static changeProductionStatus(key, action) {
+        return this.runQueueAction(ApiClient.changeProductionStatus(key, action));
+    }
+
+    static startPaintingBranch(key, branch) {
+        return this.runQueueAction(ApiClient.startPaintingBranch(key, branch));
+    }
+
+    static sendPaintingBranchToPackaging(key, branch) {
+        return this.runQueueAction(ApiClient.sendPaintingBranchToPackaging(key, branch));
+    }
+
+    static launchManufacturing(key) {
+        return this.runQueueAction(ApiClient.launchManufacturing(key));
+    }
+
+    static changeManufacturingStatus(key, branch, action, comment) {
+        return this.runQueueAction(ApiClient.changeManufacturingStatus(key, branch, action, comment));
+    }
+
+    static sendSgpToInstallation(key, branch) {
+        return this.runQueueAction(ApiClient.sendSgpToInstallation(key, branch));
+    }
+
+    static saveInstallationComment(key, branch, comment) {
+        return this.runQueueAction(ApiClient.saveInstallationComment(key, branch, comment));
+    }
+
+    static saveClaimComment(key, comment) {
+        return this.runQueueAction(ApiClient.saveClaimComment(key, comment));
+    }
+
+    static changeManufacturingStage(key, branch, stage) {
+        return this.runQueueAction(ApiClient.changeManufacturingStage(key, branch, stage));
+    }
+
+    static moveOrderToOverallStage(key, stage) {
+        return this.runQueueAction(ApiClient.moveOrderToOverallStage(key, stage));
+    }
+
+    static sendOrderToClaims(key, branch, comment) {
+        return this.runQueueAction(ApiClient.sendOrderToClaims(key, branch, comment));
+    }
+
+    static completeClaim(key) {
+        return this.runQueueAction(ApiClient.completeClaim(key));
+    }
+
+    static restoreCompletedCorpusInstallation(key) {
+        return this.runQueueAction(ApiClient.restoreCompletedCorpusInstallation(key));
+    }
+
+    static setMdfFacade(key, enabled) {
+        return this.runQueueAction(ApiClient.setMdfFacade(key, enabled));
+    }
+
+    static setVeneerFacade(key, enabled) {
+        return this.runQueueAction(ApiClient.setVeneerFacade(key, enabled));
+    }
+
+    static setFacadeMaterials(key, selection) {
+        return this.runQueueAction(ApiClient.setFacadeMaterials(key, selection));
+    }
+
+    static setCorpusTypes(key, selection) {
+        return this.runQueueAction(ApiClient.setCorpusTypes(key, selection));
+    }
+
+    static setMaterialAreas(key, areas) {
+        return this.runQueueAction(ApiClient.setMaterialAreas(key, areas));
+    }
+
+    static saveProductionDays(key, days) {
+        return this.runQueueAction(ApiClient.saveProductionDays(key, days));
+    }
+
+    static getPaintingNorms() {
+        return ApiClient.getPaintingNorms();
+    }
+
+    static savePaintingNorms(payload) {
+        return ApiClient.savePaintingNorms(payload);
+    }
+
+    static activateHourlyPaintingPlanning() {
+        return ApiClient.activateHourlyPaintingPlanning();
+    }
+
+    static changeFacadeType(key, facadeType) {
+        return ApiClient.changeFacadeType(key, facadeType);
+    }
+
+    static setProformaApprovedDate(key, value) {
+        return this.runQueueAction(ApiClient.setProformaApprovedDate(key, value));
+    }
+
+    static setOrderDeadlineSettings(key, mode, manufacturingDays, manualDate) {
+        return this.runQueueAction(ApiClient.setOrderDeadlineSettings(key, mode, manufacturingDays, manualDate));
+    }
+
+    static changeSandingStatus(key, taskType, action, comment, branch) {
+        return this.runQueueAction(ApiClient.changeSandingStatus(key, taskType, action, comment, branch));
+    }
+
+    static changeSandingWorker(key, worker) {
+        return this.runQueueAction(ApiClient.changeSandingWorker(key, worker));
+    }
+
+    static setAvailableSandingWorkers(workers) {
+        return this.runQueueAction(ApiClient.setAvailableSandingWorkers(workers));
+    }
+
+    static changePaintingStatus(key, taskType, action, comment, branch) {
+        return this.runQueueAction(ApiClient.changePaintingStatus(key, taskType, action, comment, branch));
+    }
+
+    static getOrderFiles(key) {
+        return ApiClient.getOrderFiles(key);
+    }
+
+    static downloadMeasurementArchive(key) {
+        return ApiClient.downloadMeasurementArchive(key);
+    }
+
+    static uploadOrderFile(key, section, file) {
+        return ApiClient.uploadOrderFile(key, section, file);
+    }
+
+    static downloadOrderFile(key, section, fileId) {
+        return ApiClient.downloadOrderFile(key, section, fileId);
+    }
+
+    static getOrderFileThumbnail(key, section, fileId) {
+        return ApiClient.getOrderFileThumbnail(key, section, fileId);
+    }
+
+    static deleteOrderFile(key, section, fileId) {
+        return ApiClient.deleteOrderFile(key, section, fileId);
+    }
+
+    static getMailCloudConnectionStatus() {
+        return ApiClient.getMailCloudConnectionStatus();
+    }
+
+    static changeOrderDuration(key, duration) {
+        return this.runQueueAction(ApiClient.changeOrderDuration(key, duration));
+    }
+
+    static advanceManagerStage(key, stage) {
+        return this.runQueueAction(ApiClient.advanceManagerStage(key, stage));
+    }
+
+    static reviewByTechnologist(key, action, constructor, proformaDays, kdDays) {
+        return this.runQueueAction(ApiClient.reviewByTechnologist(key, action, constructor, proformaDays, kdDays));
+    }
+
+    static getSupplyImportCandidates(fileName) {
+        return ApiClient.getSupplyImportCandidates(fileName);
+    }
+
+    static importSupplySpecification(file, orderKey) {
+        return this.runQueueAction(ApiClient.importSupplySpecification(file, orderKey));
+    }
+
+    static previewSupplySpecification(file, orderKey, selections) {
+        return ApiClient.previewSupplySpecification(file, orderKey, selections);
+    }
+
+    static analyzeSupplySpecification(file, orderKey) {
+        return ApiClient.analyzeSupplySpecification(file, orderKey);
+    }
+
+    static saveSupplySpecification(materials, fileName, orderKey, importInfo) {
+        return this.runQueueAction(ApiClient.saveSupplySpecification(materials, fileName, orderKey, importInfo));
+    }
+
+    static changePurchaseStatus(rowId, direction) {
+        return this.runQueueAction(ApiClient.changePurchaseStatus(rowId, direction));
+    }
+
+    static setPurchaseStatus(rowId, status) {
+        return this.runQueueAction(ApiClient.setPurchaseStatus(rowId, status));
+    }
+
+    static assignSupplySupplier(rowId, supplier) {
+        return this.runQueueAction(ApiClient.assignSupplySupplier(rowId, supplier));
+    }
+
+    static deleteSupplyMaterial(rowId) {
+        return this.runQueueAction(ApiClient.deleteSupplyMaterial(rowId));
+    }
+
+    static getSupplyOrderDirectory() {
+        return ApiClient.getSupplyOrderDirectory();
+    }
+
+    static clearSupplyOrderMaterials(orderKey) {
+        return this.runQueueAction(ApiClient.clearSupplyOrderMaterials(orderKey));
+    }
+
+    static getSupplierOrderCandidates(supplier, productKeys) {
+        return ApiClient.getSupplierOrderCandidates(supplier, productKeys);
+    }
+
+    static createSupplierOrder(supplier, rowIds) {
+        return this.runQueueAction(ApiClient.createSupplierOrder(supplier, rowIds));
+    }
+
+    static getSupplierOrderDetails(orderId) {
+        return ApiClient.getSupplierOrderDetails(orderId);
+    }
+
+    static exportSupplierOrderExcel(orderId) {
+        return ApiClient.exportSupplierOrderExcel(orderId);
+    }
+
+    static exportAllOrdersExcel(rows, filters) {
+        return ApiClient.exportAllOrdersExcel(rows, filters);
+    }
+
+    static exportProductionExcel(rows, filters, layout) {
+        return ApiClient.exportProductionExcel(rows, filters, layout);
+    }
+
+    static createBasisSpecification(file) {
+        return ApiClient.createBasisSpecification(file);
+    }
+
+    static exportListExcel(exportType, rows, filters) {
+        return ApiClient.exportListExcel(exportType, rows, filters);
+    }
+
+    static getSupplierOrderAddCandidates(orderId) {
+        return ApiClient.getSupplierOrderAddCandidates(orderId);
+    }
+
+    static addSupplierOrderMaterials(orderId, rowIds) {
+        return this.runQueueAction(ApiClient.addSupplierOrderMaterials(orderId, rowIds));
+    }
+
+    static updateSupplierOrderLine(orderId, lineId, quantity, unit) {
+        return this.runQueueAction(ApiClient.updateSupplierOrderLine(orderId, lineId, quantity, unit));
+    }
+
+    static removeSupplierOrderLines(orderId, lineIds) {
+        return this.runQueueAction(ApiClient.removeSupplierOrderLines(orderId, lineIds));
+    }
+
+    static splitSupplierOrderLines(orderId, lineIds) {
+        return this.runQueueAction(ApiClient.splitSupplierOrderLines(orderId, lineIds));
+    }
+
+    static setSupplierOrderStatus(orderId, status) {
+        return this.runQueueAction(ApiClient.setSupplierOrderStatus(orderId, status));
+    }
+
+    static saveSupplierOrderInvoiceNumbers(orderId, invoiceNumbers) {
+        return this.runQueueAction(ApiClient.saveSupplierOrderInvoiceNumbers(orderId, invoiceNumbers));
+    }
+
+    static attachSupplierOrderInvoice(orderId, payload) {
+        return this.runQueueAction(ApiClient.attachSupplierOrderInvoice(orderId, payload));
+    }
+
+    static createEquipment(data) {
+        return this.runQueueAction(ApiClient.createEquipment(data));
+    }
+
+    static updateEquipment(id, data) {
+        return this.runQueueAction(ApiClient.updateEquipment(id, data));
+    }
+
+    static setEquipmentStatus(id, status) {
+        return this.runQueueAction(ApiClient.setEquipmentStatus(id, status));
+    }
+
+    static setEquipmentSupplier(id, supplier) {
+        return this.runQueueAction(ApiClient.setEquipmentSupplier(id, supplier));
+    }
+
+    static getEquipmentProposalFiles(id) {
+        return ApiClient.getEquipmentProposalFiles(id);
+    }
+
+    static uploadEquipmentProposalFile(id, file) {
+        return ApiClient.uploadEquipmentProposalFile(id, file);
+    }
+
+    static deleteEquipmentProposalFile(id, fileId) {
+        return ApiClient.deleteEquipmentProposalFile(id, fileId);
+    }
+
+    static previewEquipmentInvoice(file) { return ApiClient.previewEquipmentInvoice(file); }
+    static saveEquipmentInvoice(payload) { return this.runQueueAction(ApiClient.saveEquipmentInvoice(payload)); }
+    static getEquipmentInvoiceDetail(id) { return ApiClient.getEquipmentInvoiceDetail(id); }
+    static getEquipmentInvoices(id) { return ApiClient.getEquipmentInvoices(id); }
+    static markEquipmentInvoicePaid(id, paidAt) { return this.runQueueAction(ApiClient.markEquipmentInvoicePaid(id, paidAt)); }
+
+    static createTabletop(data) { return this.runQueueAction(ApiClient.createTabletop(data)); }
+    static updateTabletop(id, data) { return this.runQueueAction(ApiClient.updateTabletop(id, data)); }
+    static setTabletopStatus(id, status) { return this.runQueueAction(ApiClient.setTabletopStatus(id, status)); }
+    static setTabletopSupplier(id, supplier) { return this.runQueueAction(ApiClient.setTabletopSupplier(id, supplier)); }
+    static getTabletopProposalFiles(id) { return ApiClient.getTabletopProposalFiles(id); }
+    static uploadTabletopProposalFile(id, file) { return ApiClient.uploadTabletopProposalFile(id, file); }
+    static deleteTabletopProposalFile(id, fileId) { return ApiClient.deleteTabletopProposalFile(id, fileId); }
+
+    static getSupplySuppliers() {
+        return ApiClient.getSupplySuppliers();
+    }
+
+    static saveSupplySupplier(supplier) {
+        return ApiClient.saveSupplySupplier(supplier);
+    }
+
+    static deleteSupplySupplier(name) {
+        return ApiClient.deleteSupplySupplier(name);
+    }
+
+    static getConsumableCandidates() {
+        return ApiClient.getConsumableCandidates();
+    }
+
+    static saveConsumables(names) {
+      return this.runQueueAction(ApiClient.saveConsumables(names));
+    }
+    static saveMaterialRoutes(routes) { return this.runQueueAction(ApiClient.saveMaterialRoutes(routes)); }
+    static importExpoCatalog() { return ApiClient.importExpoCatalog(); }
+
+    static searchSupplyArticles(supplier) {
+        return this.runQueueAction(ApiClient.searchSupplyArticles(supplier));
+    }
+
+    static previewPlateMaterials(files, orderKey) {
+        return ApiClient.previewPlateMaterials(files, orderKey);
+    }
+
+    static getPlateImportOrders(folderName) {
+        return ApiClient.getPlateImportOrders(folderName);
+    }
+
+    static savePlateMaterials(materials, sourceName, orderKey) {
+        return this.runQueueAction(ApiClient.savePlateMaterials(materials, sourceName, orderKey));
+    }
+
+    static setPlateOrderSheets(rowId, value) {
+        return this.runQueueAction(ApiClient.setPlateOrderSheets(rowId, value));
+    }
+
+    static setPlatePurchaseStatus(rowId, status) {
+        return this.runQueueAction(ApiClient.setPlatePurchaseStatus(rowId, status));
+    }
+
+}
+
+</script>

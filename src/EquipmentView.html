@@ -1,0 +1,350 @@
+<script>
+class EquipmentView {
+    static initialized = false;
+    static items = [];
+
+    static init() {
+        if (this.initialized) return;
+        this.initialized = true;
+        document.getElementById("addEquipmentBtn").onclick = () => this.openCreate();
+        document.getElementById("cancelEquipment").onclick = () => this.closeModal();
+        document.getElementById("saveEquipment").onclick = () => this.save();
+        document.getElementById("equipmentClient").onchange = () => this.fillContracts(document.getElementById("equipmentContract").value);
+        document.getElementById("equipmentQuantity").oninput = () => this.updateTotal();
+        document.getElementById("equipmentUnitPrice").oninput = () => this.updateTotal();
+        document.getElementById("equipmentSearch").oninput = () => QueueView.render();
+        document.getElementById("equipmentClientFilter").onchange = () => QueueView.render();
+        document.getElementById("equipmentStatusFilter").onchange = () => QueueView.render();
+        document.getElementById("copyEquipmentListBtn").onclick = () => this.copyClientList();
+        document.getElementById("uploadEquipmentProposalBtn").onclick = () => document.getElementById("equipmentProposalInput").click();
+        document.getElementById("equipmentProposalInput").onchange = event => this.uploadProposal(event.target.files && event.target.files[0]);
+        document.getElementById("openEquipmentInvoicesFromCard").onclick = () => { this.closeModal(); QueueController.setRole("equipmentInvoices"); };
+    }
+
+    static toggle(visible) {
+        const toolbar = document.getElementById("equipmentToolbar");
+        const addEquipment = document.getElementById("addEquipmentBtn");
+        const addOrder = document.getElementById("addOrderBtn");
+        const statistics = document.getElementById("statisticsPanel");
+        document.body.classList.toggle("equipment-section-active", visible);
+        if (toolbar) toolbar.classList.toggle("hidden", !visible);
+        if (addEquipment) addEquipment.classList.toggle("hidden", !visible);
+        if (addEquipment) addEquipment.disabled = visible && !(Store.state.dictionaries.clients || []).length;
+        const equipmentContext = ["equipment", "equipmentInvoices"].includes(Store.getRole());
+        if (addOrder) addOrder.classList.toggle("hidden", equipmentContext || ["purchase", "plate"].includes(Store.getRole()));
+        if (statistics) statistics.classList.toggle("hidden", equipmentContext || ["purchase", "plate"].includes(Store.getRole()));
+    }
+
+    static initFilters() {
+        const title = document.getElementById("filterTitle");
+        const panel = document.getElementById("userButtons");
+        if (title) title.textContent = "💻 Закупка техники";
+        if (panel) panel.innerHTML = "";
+    }
+
+    static render(items) {
+        this.items = items || [];
+        const addEquipment = document.getElementById("addEquipmentBtn");
+        if (addEquipment && Store.getRole() === "equipment") addEquipment.disabled = !(Store.state.dictionaries.clients || []).length;
+        this.renderClientFilter();
+        const filtered = this.getFilteredItems();
+        const container = document.getElementById("ordersContainer");
+        const total = document.getElementById("totalOrders");
+        if (total) total.textContent = "Позиций техники: " + filtered.length;
+        if (!filtered.length) {
+            container.innerHTML = `<div class="block"><div class="supply-empty">Нет позиций техники. Нажмите «Добавить технику».</div></div>`;
+            return;
+        }
+        container.innerHTML = `<div class="block"><div class="table-wrap"><table class="supply-table equipment-table"><thead><tr>
+            <th>Договор</th><th>Клиент</th><th>Наименование техники</th><th>Модель</th><th>Менеджер</th><th>Поставщик</th><th>Статус</th>
+        </tr></thead><tbody>${filtered.map(item => this.renderRow(item)).join("")}</tbody></table></div></div>`;
+        container.querySelectorAll("[data-equipment-open]").forEach(button => {
+            button.onclick = () => this.openEdit(button.dataset.equipmentOpen);
+        });
+        container.querySelectorAll("[data-equipment-supplier]").forEach(select => {
+            select.onchange = () => this.quickSupplier(select.dataset.equipmentSupplier, select.value, select);
+        });
+        container.querySelectorAll("[data-equipment-status]").forEach(select => {
+            select.onchange = () => this.quickStatus(select.dataset.equipmentStatus, select.value, select);
+        });
+    }
+
+    static renderRow(item) {
+        const dictionaries = Store.state.dictionaries || {};
+        const suppliers = this.withCurrent(dictionaries.activeSuppliers || [], item.supplier);
+        const statuses = dictionaries.equipmentStatuses || ["Заказать", "Счет", "Оплачен", "Доставлен"];
+        return `<tr class="equipment-status-${statuses.indexOf(item.status)}">
+            <td>${this.escape(item.contract)}</td>
+            <td>${this.escape(item.client)}</td>
+            <td><button class="equipment-name-btn" data-equipment-open="${this.escape(item.id)}">${this.escape(item.name)}</button></td>
+            <td>${this.renderModel(item)}</td>
+            <td>${this.escape(item.manager)}</td>
+            <td><select class="supplier-select" data-equipment-supplier="${this.escape(item.id)}">
+                <option value="">Не выбран</option>${suppliers.map(value => this.option(value, item.supplier)).join("")}
+            </select></td>
+            <td><select class="purchase-status-select" data-equipment-status="${this.escape(item.id)}">
+                ${statuses.map(value => this.option(value, item.status)).join("")}
+            </select></td>
+        </tr>`;
+    }
+
+    static getFilteredItems() {
+        const query = String(document.getElementById("equipmentSearch")?.value || "").trim().toLowerCase();
+        const client = document.getElementById("equipmentClientFilter")?.value || "";
+        const status = document.getElementById("equipmentStatusFilter")?.value || "";
+        return this.items.filter(item => {
+            if (client && item.client !== client) return false;
+            if (status && item.status !== status) return false;
+            if (!query) return true;
+            return [item.contract, item.client, item.name, item.model, item.manager, item.supplier]
+                .some(value => String(value || "").toLowerCase().includes(query));
+        });
+    }
+
+    static renderClientFilter() {
+        const control = document.getElementById("equipmentClientFilter");
+        const copyButton = document.getElementById("copyEquipmentListBtn");
+        if (!control) return;
+        const selected = control.value;
+        const clients = [...new Set(this.items.map(item => item.client))]
+            .map(value => String(value || "").trim()).filter(Boolean)
+            .sort((a, b) => a.localeCompare(b, "ru"));
+        control.innerHTML = `<option value="">Все клиенты</option>${clients.map(value => this.option(value, selected)).join("")}`;
+        if (selected && !clients.includes(selected)) control.value = "";
+        if (copyButton) copyButton.disabled = !control.value;
+    }
+
+    static copyClientList() {
+        const client = document.getElementById("equipmentClientFilter")?.value || "";
+        if (!client) return QueueView.showMessage("Сначала выберите клиента в фильтре.");
+        const items = this.items.filter(item => item.client === client);
+        if (!items.length) return QueueView.showMessage("Для выбранного клиента нет позиций техники.");
+        const byContract = items.reduce((groups, item) => {
+            const contract = String(item.contract || "Без договора");
+            (groups[contract] = groups[contract] || []).push(item);
+            return groups;
+        }, {});
+        const lines = [`Техника для клиента: ${client}`, ""];
+        Object.keys(byContract).sort((a, b) => a.localeCompare(b, "ru")).forEach(contract => {
+            lines.push(`Договор: ${contract}`);
+            byContract[contract].forEach((item, index) => {
+                const model = item.model ? ` — ${item.model}` : "";
+                lines.push(`${index + 1}. ${item.name}${model}; количество: ${item.quantity} шт.`);
+            });
+            lines.push("");
+        });
+        this.writeToClipboard(lines.join("\n").trim())
+            .then(() => QueueView.showMessage("Список техники скопирован в буфер обмена."))
+            .catch(() => QueueView.showMessage("Не удалось скопировать список. Разрешите доступ к буферу обмена и повторите попытку."));
+    }
+
+    static writeToClipboard(text) {
+        if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        const copied = document.execCommand("copy");
+        textarea.remove();
+        return copied ? Promise.resolve() : Promise.reject(new Error("Копирование недоступно"));
+    }
+
+    static renderModel(item) {
+        const model = this.escape(item.model);
+        const url = String(item.supplierUrl || "").trim();
+        // Дополнительная проверка защищает отображение старых строк, внесённых
+        // вручную в таблицу до серверной валидации ссылки.
+        if (!/^https?:\/\/\S+$/i.test(url)) return model;
+        return `<a class="equipment-model-link" href="${this.escape(url)}" target="_blank" rel="noopener noreferrer" title="Открыть страницу с описанием">${model}</a>`;
+    }
+
+    static openCreate() {
+        this.fillForm(null);
+        document.getElementById("equipmentModalTitle").textContent = "➕ Новая техника";
+        document.getElementById("equipmentProposalSection").classList.add("hidden");
+        document.getElementById("equipmentModal").classList.remove("hidden");
+    }
+
+    static openEdit(id) {
+        const item = this.items.find(candidate => candidate.id === id);
+        if (!item) return QueueView.showMessage("Позиция техники не найдена.");
+        this.fillForm(item);
+        document.getElementById("equipmentModalTitle").textContent = "💻 Карточка техники";
+        document.getElementById("equipmentProposalSection").classList.remove("hidden");
+        document.getElementById("equipmentInvoicesSection").classList.remove("hidden");
+        document.getElementById("equipmentModal").classList.remove("hidden");
+        this.loadProposals(id);
+        this.loadInvoices(id);
+    }
+
+    static fillForm(item) {
+        const dictionaries = Store.state.dictionaries || {};
+        const clients = dictionaries.clients || [];
+        const client = item ? item.client : (clients[0] || "");
+        document.getElementById("equipmentId").value = item ? item.id : "";
+        document.getElementById("equipmentClient").innerHTML = clients.map(value => this.option(value, client)).join("") || `<option value="">Нет клиентов</option>`;
+        this.fillContracts(item ? item.contract : "");
+        document.getElementById("equipmentName").value = item ? item.name : "";
+        document.getElementById("equipmentModel").value = item ? item.model : "";
+        document.getElementById("equipmentQuantity").value = item ? item.quantity : 1;
+        document.getElementById("equipmentUnitPrice").value = item && item.unitPrice !== "" ? item.unitPrice : "";
+        document.getElementById("equipmentManager").innerHTML = this.withCurrent(dictionaries.managers || [], item && item.manager)
+            .map(value => this.option(value, item ? item.manager : "")).join("") || `<option value="">Нет менеджеров</option>`;
+        document.getElementById("equipmentSupplier").innerHTML = `<option value="">Не выбран</option>` +
+            this.withCurrent(dictionaries.activeSuppliers || [], item && item.supplier).map(value => this.option(value, item ? item.supplier : "")).join("");
+        document.getElementById("equipmentStatus").innerHTML = (dictionaries.equipmentStatuses || [])
+            .map(value => this.option(value, item ? item.status : "Заказать")).join("");
+        document.getElementById("equipmentSupplierUrl").value = item ? item.supplierUrl : "";
+        document.getElementById("equipmentProposalInput").value = "";
+        document.getElementById("equipmentProposalList").innerHTML = "";
+        document.getElementById("equipmentInvoicesList").innerHTML = "";
+        document.getElementById("equipmentInvoicesSection").classList.toggle("hidden", !item);
+        this.updateTotal();
+    }
+
+    static fillContracts(selected) {
+        const contracts = Store.state.dictionaries.contracts || [];
+        const list = document.getElementById("equipmentContractList");
+        if (list) list.innerHTML = contracts.map(value => `<option value="${this.escape(value)}"></option>`).join("");
+        document.getElementById("equipmentContract").value = selected || "";
+    }
+
+    static collectForm() {
+        return {
+            client: document.getElementById("equipmentClient").value,
+            contract: document.getElementById("equipmentContract").value,
+            name: document.getElementById("equipmentName").value,
+            model: document.getElementById("equipmentModel").value,
+            quantity: document.getElementById("equipmentQuantity").value,
+            unitPrice: document.getElementById("equipmentUnitPrice").value,
+            manager: document.getElementById("equipmentManager").value,
+            supplier: document.getElementById("equipmentSupplier").value,
+            status: document.getElementById("equipmentStatus").value,
+            supplierUrl: document.getElementById("equipmentSupplierUrl").value
+        };
+    }
+
+    static save() {
+        const id = document.getElementById("equipmentId").value;
+        const button = document.getElementById("saveEquipment");
+        button.disabled = true;
+        button.textContent = "Сохранение...";
+        const request = id ? QueueController.updateEquipment(id, this.collectForm()) : QueueController.createEquipment(this.collectForm());
+        request.then(() => this.closeModal()).catch(error => QueueView.showMessage(error)).finally(() => {
+            button.disabled = false;
+            button.textContent = "Сохранить";
+        });
+    }
+
+    static quickStatus(id, status, control) {
+        control.disabled = true;
+        QueueController.setEquipmentStatus(id, status).catch(error => { QueueView.showMessage(error); QueueView.render(); }).finally(() => { control.disabled = false; });
+    }
+
+    static quickSupplier(id, supplier, control) {
+        control.disabled = true;
+        QueueController.setEquipmentSupplier(id, supplier).catch(error => { QueueView.showMessage(error); QueueView.render(); }).finally(() => { control.disabled = false; });
+    }
+
+    static loadProposals(id) {
+        const list = document.getElementById("equipmentProposalList");
+        list.innerHTML = `<div class="supply-empty">Загрузка файлов...</div>`;
+        QueueController.getEquipmentProposalFiles(id)
+            .then(files => this.renderProposals(files))
+            .catch(error => { list.innerHTML = `<div class="supply-empty">${this.escape(error.message || error)}</div>`; });
+    }
+
+    static loadInvoices(id) {
+        const list = document.getElementById("equipmentInvoicesList");
+        list.innerHTML = `<div class="supply-empty">Загрузка счетов...</div>`;
+        QueueController.getEquipmentInvoices(id).then(invoices => {
+            list.innerHTML = invoices && invoices.length ? invoices.map(invoice => `<div class="equipment-proposal-item"><a href="https://drive.google.com/open?id=${this.escape(invoice.fileId)}" target="_blank" rel="noopener">Счёт №${this.escape(invoice.number)} · ${this.escape(invoice.date)} · ${this.formatMoney(invoice.amount)}</a><span>${this.escape(invoice.paymentStatus)}</span></div>`).join("") : `<div class="supply-empty">Счетов для этой позиции пока нет.</div>`;
+        }).catch(error => { list.innerHTML = `<div class="supply-empty">${this.escape(error.message || error)}</div>`; });
+    }
+
+    static renderProposals(files) {
+        const list = document.getElementById("equipmentProposalList");
+        list.innerHTML = files && files.length ? files.map(file => `<div class="equipment-proposal-item">
+            <a href="${this.escape(file.url)}" target="_blank" rel="noopener">${this.escape(file.name)}</a>
+            <button type="button" class="reset-btn equipment-proposal-delete" data-proposal-delete="${this.escape(file.id)}" data-proposal-name="${this.escape(file.name)}">Удалить</button>
+        </div>`).join("") : `<div class="supply-empty">КП ещё не прикреплены.</div>`;
+        list.querySelectorAll("[data-proposal-delete]").forEach(button => {
+            button.onclick = () => this.deleteProposal(button.dataset.proposalDelete, button.dataset.proposalName);
+        });
+    }
+
+    static uploadProposal(file) {
+        if (!file) return;
+        if (file.size > 10 * 1024 * 1024) {
+            document.getElementById("equipmentProposalInput").value = "";
+            return QueueView.showMessage("Размер файла КП не должен превышать 10 МБ.");
+        }
+        const id = document.getElementById("equipmentId").value;
+        if (!id) return QueueView.showMessage("Сначала сохраните позицию техники.");
+        const button = document.getElementById("uploadEquipmentProposalBtn");
+        button.disabled = true;
+        button.textContent = "Загрузка...";
+        const reader = new FileReader();
+        reader.onload = () => {
+            const base64 = String(reader.result || "").split(",")[1] || "";
+            QueueController.uploadEquipmentProposalFile(id, { name: file.name, mimeType: file.type, base64: base64 })
+                .then(files => this.renderProposals(files))
+                .catch(error => QueueView.showMessage(error))
+                .finally(() => {
+                    button.disabled = false;
+                    button.textContent = "Прикрепить КП";
+                    document.getElementById("equipmentProposalInput").value = "";
+                });
+        };
+        reader.onerror = () => {
+            button.disabled = false;
+            button.textContent = "Прикрепить КП";
+            QueueView.showMessage("Не удалось прочитать файл КП.");
+        };
+        reader.readAsDataURL(file);
+    }
+
+    static deleteProposal(fileId, name) {
+        if (!confirm(`Удалить файл «${name}»? Он будет перемещён в корзину Google Drive.`)) return;
+        const id = document.getElementById("equipmentId").value;
+        QueueController.deleteEquipmentProposalFile(id, fileId)
+            .then(files => this.renderProposals(files))
+            .catch(error => QueueView.showMessage(error));
+    }
+
+    static updateTotal() {
+        const quantity = Number(document.getElementById("equipmentQuantity").value);
+        const priceText = document.getElementById("equipmentUnitPrice").value;
+        const total = document.getElementById("equipmentTotal");
+        const price = Number(priceText);
+        total.textContent = Number.isInteger(quantity) && quantity > 0 && priceText !== "" && Number.isFinite(price)
+            ? new Intl.NumberFormat("ru-RU", { style: "currency", currency: "RUB" }).format(quantity * price)
+            : "—";
+    }
+
+    static formatMoney(value) { return new Intl.NumberFormat("ru-RU", { style: "currency", currency: "RUB" }).format(Number(value || 0)); }
+
+    static closeModal() {
+        document.getElementById("equipmentModal").classList.add("hidden");
+        document.getElementById("equipmentProposalInput").value = "";
+    }
+
+    static withCurrent(values, current) {
+        return [...new Set((values || []).concat(current || []).map(value => String(value || "").trim()).filter(Boolean))]
+            .sort((a, b) => a.localeCompare(b, "ru"));
+    }
+
+    static option(value, selected) {
+        return `<option value="${this.escape(value)}"${value === selected ? " selected" : ""}>${this.escape(value)}</option>`;
+    }
+
+    static escape(value) {
+        return String(value === null || value === undefined ? "" : value)
+            .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+}
+</script>

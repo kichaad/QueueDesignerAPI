@@ -1,0 +1,219 @@
+<script>
+class PlateMaterialView {
+    static files = [];
+    static filePayloads = [];
+    static previewMaterials = null;
+    static importOrders = [];
+    static initialized = false;
+
+    static toggle(visible) {
+        const button = document.getElementById("importPlateBtn");
+        if (button) button.classList.toggle("hidden", !visible);
+        if (visible) this.bindControls();
+    }
+
+    static bindControls() {
+        if (this.initialized) return;
+        this.initialized = true;
+        const button = document.getElementById("importPlateBtn");
+        const folderInput = document.getElementById("plateFolderInput");
+        const fileInput = document.getElementById("plateFileInput");
+        if (button) button.onclick = () => document.getElementById("plateSourceModal").classList.remove("hidden");
+        if (folderInput) folderInput.onchange = () => this.prepareFiles([...folderInput.files], "folder");
+        if (fileInput) fileInput.onchange = () => this.prepareFiles([...fileInput.files], "file");
+        document.getElementById("choosePlateFolder").onclick = () => { document.getElementById("plateSourceModal").classList.add("hidden"); folderInput.click(); };
+        document.getElementById("choosePlateFile").onclick = () => { document.getElementById("plateSourceModal").classList.add("hidden"); fileInput.click(); };
+        document.getElementById("cancelPlateSource").onclick = () => document.getElementById("plateSourceModal").classList.add("hidden");
+        document.getElementById("cancelPlateImport").onclick = () => this.closeImport();
+        document.getElementById("confirmPlateImport").onclick = () => this.confirmImport();
+        document.getElementById("plateContractSelect").onchange = () => this.renderOrderOptions(true);
+        // Материалы не зависят от выбранного изделия: не скрываем таблицу
+        // предварительного просмотра при ручном уточнении заказа.
+        document.getElementById("plateOrderSelect").onchange = () => {};
+    }
+
+    static initFilters(items) {
+        const panel = document.getElementById("userButtons");
+        const title = document.getElementById("filterTitle");
+        if (title) title.textContent = "🪵 Категории";
+        if (!panel) return;
+        const categories = ["ЛДСП", "ЛМДФ", "ЛХДФ", "МДФ", "Кромка"].filter(category => (items || []).some(item => item.category === category));
+        const selected = Store.getSelectedUser();
+        panel.innerHTML = `<button class="toggle-btn ${selected ? "" : "active"}" data-plate-category="">Все</button>` +
+            categories.map(category => `<button class="toggle-btn ${selected === category ? "active" : ""}" data-plate-category="${category}">${category}</button>`).join("");
+        panel.querySelectorAll("[data-plate-category]").forEach(button => {
+            button.onclick = () => {
+                QueueController.setSelectedUser(button.dataset.plateCategory || "");
+                this.initFilters(QueueView.orders);
+                this.render(QueueView.orders);
+            };
+        });
+    }
+
+    static getFilteredItems(items) {
+        let result = [...(items || [])];
+        const category = Store.getSelectedUser();
+        const query = String(document.getElementById("supplySearch")?.value || "").trim().toLowerCase();
+        const status = document.getElementById("supplyStatusFilter")?.value || "";
+        if (category) result = result.filter(item => item.category === category);
+        if (status) result = result.filter(item => item.purchaseStatus === status);
+        if (query) result = result.filter(item => [item.contract, item.client, item.product, item.category, item.article, item.name, item.decor, item.sheetSize, item.supplier]
+            .some(value => String(value || "").toLowerCase().includes(query)));
+        return result;
+    }
+
+    static render(items) {
+        const rows = this.getFilteredItems(items);
+        const container = document.getElementById("ordersContainer");
+        const total = document.getElementById("totalOrders");
+        if (total) total.textContent = `Позиций: ${rows.length}`;
+        if (!container) return;
+        if (!rows.length) {
+            container.innerHTML = `<div class="block"><div class="supply-empty">Нет плитного материала. Загрузите папку с PDF-картами раскроя.</div></div>`;
+            return;
+        }
+        const statuses = ["Новый", "Счёт получен", "Оплачено", "Товар получен"];
+        const counts = statuses.map(status => `<span class="stage-summary-item">${status} <span class="badge">${rows.filter(item => item.purchaseStatus === status).length}</span></span>`).join("");
+        container.innerHTML = `<div class="block"><div class="block-header"><div class="block-name">🪵 Плитный материал <span class="badge">${rows.length}</span></div><div class="stage-summary">${counts}</div></div>
+            <div class="table-wrap"><table class="supply-table plate-table"><thead><tr><th>#</th><th>Договор</th><th>Клиент</th><th>Изделие</th><th>Дедлайн</th><th>Категория</th><th>Артикул</th><th>Наименование</th><th>Цвет/декор</th><th>Толщина, мм</th><th>Размер листа</th><th>Ед.</th><th>Расчёт, листов</th><th>К заказу, листов</th><th>Статус закупки</th></tr></thead><tbody>
+            ${rows.map((item, index) => this.renderRow(item, index)).join("")}</tbody></table></div></div>`;
+        container.querySelectorAll("[data-plate-sheets]").forEach(input => input.onchange = () => this.setSheets(input.dataset.plateSheets, input.value));
+        container.querySelectorAll("[data-plate-adjust]").forEach(button => button.onclick = () => {
+            const input = container.querySelector(`[data-plate-sheets="${button.dataset.plateAdjust}"]`);
+            const next = Math.max(0, Number(input.value || 0) + Number(button.dataset.delta));
+            input.value = next;
+            this.setSheets(button.dataset.plateAdjust, next);
+        });
+        container.querySelectorAll("[data-plate-status]").forEach(select => select.onchange = () => this.setStatus(select.dataset.plateStatus, select.value));
+    }
+
+    static renderRow(item, index) {
+        const statuses = ["Новый", "Счёт получен", "Оплачено", "Товар получен"];
+        const status = `<select class="purchase-status-select" data-plate-status="${this.escape(item.rowId)}">${statuses.map(value => `<option${value === item.purchaseStatus ? " selected" : ""}>${value}</option>`).join("")}</select>`;
+        const price = Number.isFinite(Number(item.price)) && item.price !== "" ? Number(item.price).toLocaleString("ru-RU", { maximumFractionDigits: 2 }) : "—";
+        return `<tr><td>${index + 1}</td><td>${this.escape(item.contract)}</td><td>${this.escape(item.client)}</td><td>${this.escape(item.product)}</td><td>${this.escape(QueueView.formatDeadline(item.deadline))}</td><td>${this.escape(item.category)}</td><td>${this.escape(item.article || "—")}</td><td class="supply-name">${this.escape(item.name)}</td><td>${this.escape(item.decor || "—")}</td><td>${this.escape(item.thickness || "—")}</td><td>${this.escape(item.sheetSize || "—")}</td><td>${this.escape(item.unit || "лист")}</td><td>${this.escape(item.calculatedSheets || "—")}</td><td>${this.quantityControl(`data-plate-sheets="${this.escape(item.rowId)}"`, this.escape(item.orderSheets), `data-plate-adjust="${this.escape(item.rowId)}"`)}</td><td>${status}</td></tr>`;
+    }
+
+    static prepareFiles(files, sourceType) {
+        const pdfs = files.filter(file => /\.pdf$/i.test(file.name));
+        if (!pdfs.length) return QueueView.showMessage(new Error(sourceType === "file" ? "Выберите PDF-файл карты раскроя." : "В выбранной папке «Раскрой» не найдены PDF-карты."));
+        this.files = pdfs;
+        const sourceLabel = sourceType === "file" ? `Файл «${pdfs[0].name}»` : "Папка «Раскрой»";
+        document.getElementById("plateImportFolder").textContent = `${sourceLabel}. PDF-карт: ${pdfs.length}. Читаем название проекта…`;
+        Promise.all(pdfs.map(file => this.prepareFilePayload(file))).then(payloads => {
+            this.filePayloads = payloads;
+            return QueueController.previewPlateMaterials(payloads, "");
+        }).then(preview => {
+            this.previewMaterials = preview.materials || [];
+            const data = preview.orderCandidates || { contracts: [], orders: [], detectedContract: "" };
+            this.importOrders = data.orders || [];
+            const contracts = document.getElementById("plateContractSelect");
+            contracts.innerHTML = (data.contracts || []).map(contract => `<option value="${this.escape(contract)}">${this.escape(contract)}</option>`).join("");
+            if (data.detectedContract) contracts.value = data.detectedContract;
+            this.renderOrderOptions(true);
+            document.getElementById("plateImportFolder").textContent = `${sourceLabel}. PDF-карт: ${pdfs.length}. Договор определён по тексту карт${data.detectedContract ? `: ${data.detectedContract}` : " — выберите вручную"}.`;
+            this.renderPreview(preview);
+            document.getElementById("confirmPlateImport").textContent = "Импортировать";
+            document.getElementById("plateImportModal").classList.remove("hidden");
+        }).catch(error => QueueView.showMessage(error));
+    }
+
+    static renderOrderOptions(preservePreview = false) {
+        const contract = document.getElementById("plateContractSelect").value;
+        const select = document.getElementById("plateOrderSelect");
+        const orders = this.importOrders.filter(item => item.contract === contract);
+        select.innerHTML = orders.map(item => `<option value="${this.escape(item.key)}">${this.escape(item.client)} · ${this.escape(item.product)}</option>`).join("");
+        select.disabled = !orders.length;
+        if (!preservePreview) this.resetPreview();
+    }
+
+    static confirmImport() {
+        const orderKey = document.getElementById("plateOrderSelect").value;
+        const button = document.getElementById("confirmPlateImport");
+        if (!orderKey || !this.files.length) return;
+        button.disabled = true;
+        if (this.previewMaterials) {
+            this.collectPreviewChanges();
+            button.textContent = "Импортируем…";
+            QueueController.savePlateMaterials(this.previewMaterials, this.files.map(file => file.name).join("; "), orderKey)
+                .then(result => { this.closeImport(); SupplyView.showSupplyDialog("Импорт завершён", `Импортировано позиций: ${result.imported}.`, { confirmText: "Понятно" }); })
+                .catch(error => QueueView.showMessage(error)).finally(() => { button.disabled = false; button.textContent = "Импортировать"; });
+            return;
+        }
+        button.disabled = false;
+    }
+
+    static renderPreview(preview) {
+        const rows = (preview.materials || []).map((item, index) => `<tr class="${item.needsReview ? "unmatched" : ""}"><td>${index + 1}</td><td>${this.escape(item.category)}</td><td>${this.escape(item.article || "—")}</td><td>${this.escape(item.name)}</td><td><input data-plate-preview-decor="${index}" value="${this.escape(item.decor || "")}"></td><td>${this.escape(item.thickness || "—")}</td><td>${this.escape(item.sheetSize || "—")}</td><td>${this.escape(item.unit || "лист")}</td><td>${Number.isFinite(item.calculatedSheets) ? item.calculatedSheets : "Нужна проверка"}</td><td>${this.quantityControl(`data-plate-preview-sheets="${index}"`, Number.isFinite(item.orderSheets) ? item.orderSheets : "", `data-plate-preview-adjust="${index}"`)}</td></tr>`).join("");
+        const problems = (preview.problems || []).map(item => `${item.file}: ${item.reason}`);
+        const diagnostics = (preview.diagnostics || []).map(item => {
+            const stages = [`версия ${item.version || window.APP_VERSION || "не определена"}`, "получен"];
+            if (item.browserText) stages.push("текст в браузере");
+            if (item.drivePdf) stages.push("PDF в Drive");
+            if (item.driveDocument) stages.push("Google Docs");
+            if (item.textExtracted) stages.push("текст готов");
+            stages.push(`материалов: ${item.materials || 0}`);
+            return `${item.file}: ${stages.join(" · ")}${item.message ? ` — ${item.message}` : ""}`;
+        });
+        const container = document.getElementById("platePreviewContainer");
+        const diagnosticHtml = diagnostics.length ? `<div class="plate-diagnostics"><strong>Диагностика файлов</strong>${diagnostics.map(item => `<div>${this.escape(item)}</div>`).join("")}</div>` : "";
+        const problemsHtml = problems.length ? `<div class="plate-diagnostics plate-diagnostics-problems"><strong>Не обработаны</strong>${problems.map(item => `<div>${this.escape(item)}</div>`).join("")}</div>` : "";
+        container.innerHTML = `<table><thead><tr><th>#</th><th>Категория</th><th>Артикул</th><th>Наименование</th><th>Цвет/декор</th><th>Толщина, мм</th><th>Размер</th><th>Ед.</th><th>По карте</th><th>К заказу</th></tr></thead><tbody>${rows}</tbody></table>${diagnosticHtml}${problemsHtml}`;
+        container.querySelectorAll("[data-plate-preview-adjust]").forEach(button => button.onclick = () => {
+            const input = container.querySelector(`[data-plate-preview-sheets="${button.dataset.platePreviewAdjust}"]`);
+            input.value = Math.max(0, Number(input.value || 0) + Number(button.dataset.delta));
+        });
+        container.classList.remove("hidden");
+    }
+
+    static collectPreviewChanges() {
+        document.querySelectorAll("[data-plate-preview-decor]").forEach(input => this.previewMaterials[Number(input.dataset.platePreviewDecor)].decor = input.value.trim());
+        document.querySelectorAll("[data-plate-preview-sheets]").forEach(input => this.previewMaterials[Number(input.dataset.platePreviewSheets)].orderSheets = Number(input.value));
+    }
+
+    static setSheets(rowId, value) { QueueController.setPlateOrderSheets(rowId, value).catch(error => QueueView.showMessage(error)); }
+    static setStatus(rowId, value) { QueueController.setPlatePurchaseStatus(rowId, value).catch(error => QueueView.showMessage(error)); }
+
+    static encodeFile(file) {
+        if (file.size > 8 * 1024 * 1024) return Promise.reject(new Error(`PDF «${file.name}» превышает 8 МБ.`));
+        return file.arrayBuffer().then(buffer => {
+            const bytes = new Uint8Array(buffer); let binary = ""; const chunk = 0x8000;
+            for (let i = 0; i < bytes.length; i += chunk) binary += String.fromCharCode.apply(null, bytes.subarray(i, Math.min(i + chunk, bytes.length)));
+            return { name: file.name, mimeType: file.type || "application/pdf", base64: window.btoa(binary) };
+        });
+    }
+
+    static prepareFilePayload(file) {
+        return Promise.all([
+            this.encodeFile(file),
+            this.extractPdfTextInBrowser(file).catch(error => ({ text: "", error: String(error.message || error) }))
+        ]).then(([payload, browser]) => Object.assign(payload, { clientText: browser.text || "", clientReadError: browser.error || "", clientVersion: window.APP_VERSION || "" }));
+    }
+
+    static extractPdfTextInBrowser(file) {
+        if (!window.pdfjsLib) return Promise.reject(new Error("Библиотека чтения PDF не загрузилась."));
+        const library = window.pdfjsLib;
+        if (!library.GlobalWorkerOptions.workerSrc) library.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+        return file.arrayBuffer().then(async buffer => {
+            const pdf = await library.getDocument({ data: new Uint8Array(buffer) }).promise;
+            const pages = [];
+            for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+                const page = await pdf.getPage(pageNumber);
+                const content = await page.getTextContent();
+                pages.push(content.items.map(item => item.str || "").join(" "));
+            }
+            const text = pages.join("\n").trim();
+            if (!text) throw new Error("В PDF не найден текстовый слой.");
+            return { text: text };
+        });
+    }
+
+    static quantityControl(inputAttributes, value, adjustAttributes) {
+        return `<div class="plate-quantity-control"><button type="button" class="plate-quantity-button" ${adjustAttributes} data-delta="-1" aria-label="Уменьшить количество">−</button><input class="plate-sheets-input" ${inputAttributes} type="number" min="0" step="1" value="${value}"><button type="button" class="plate-quantity-button" ${adjustAttributes} data-delta="1" aria-label="Увеличить количество">+</button></div>`;
+    }
+
+    static resetPreview() { this.previewMaterials = null; const container = document.getElementById("platePreviewContainer"); if (container) { container.innerHTML = ""; container.classList.add("hidden"); } const button = document.getElementById("confirmPlateImport"); if (button) button.textContent = "Проверить карты раскроя"; }
+    static closeImport() { document.getElementById("plateImportModal").classList.add("hidden"); document.getElementById("plateSourceModal").classList.add("hidden"); document.getElementById("plateFolderInput").value = ""; document.getElementById("plateFileInput").value = ""; this.files = []; this.filePayloads = []; this.importOrders = []; this.resetPreview(); }
+    static escape(value) { return SupplyView.escape(value); }
+}
+</script>

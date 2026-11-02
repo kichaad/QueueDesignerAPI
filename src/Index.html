@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+
+  <base target="_top">
+
+  <meta charset="UTF-8">
+
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+  <title>Очередь конструкторов</title>
+
+  <?!= include("Styles"); ?>
+  <script>
+    window.APP_VERSION = "<?= CONFIG.APP_VERSION ?>";
+    window.APP_URL = <?!= JSON.stringify(appUrl || "") ?>;
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js?v=<?= CONFIG.APP_VERSION ?>" crossorigin="anonymous"></script>
+
+</head>
+
+<body>
+
+  <?!= include("Layout"); ?>
+
+  
+  <?!= include("EventBus"); ?>
+  <?!= include("Store"); ?>
+  <?!= include("ApiClient"); ?>
+  <?!= include("QueueController"); ?>
+  <?!= include("QueueView"); ?>
+  <?!= include("SupplyView"); ?>
+  <?!= include("SupplierOrdersView"); ?>
+  <?!= include("EquipmentView"); ?>
+  <?!= include("EquipmentInvoicesView"); ?>
+  <?!= include("TabletopView"); ?>
+  <?!= include("PlateMaterialView"); ?>
+  <?!= include("Router"); ?>
+  <?!= include("Application"); ?>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      Application.start();
+    });
+  </script>
+
+</body>
+
+</html>

@@ -1,0 +1,173 @@
+<script>
+
+class Store {
+
+    static state = {
+
+        orders: [],
+
+        dictionaries: {},
+
+        paintingNorms: null,
+
+        ui: {
+
+            loading: false
+
+        },
+
+        role: "constructor",
+        selectedUser: ""
+    };
+
+    // Поздний ответ старого запроса не должен возвращать на экран прежнюю
+    // очередь после более нового действия пользователя.
+    static requestVersion = 0;
+    static appVersionOutdated = false;
+
+    static isAppVersionOutdated() {
+        return this.appVersionOutdated;
+    }
+
+    static validateAppVersion(serverVersion) {
+        // Версию гарантированно возвращают только защищённые основные RPC
+        // getOrders и runQueueAction. Старые вспомогательные операции могут
+        // вернуть snapshot без метаданных — это не является несовпадением.
+        if (serverVersion === undefined || serverVersion === null) return true;
+        if (String(serverVersion || "") === String(window.APP_VERSION || "")) return true;
+        this.appVersionOutdated = true;
+        QueueView.showVersionMismatch(new Error("APP_VERSION_MISMATCH|client=" + String(window.APP_VERSION || "unknown") + "|server=" + String(serverVersion || "unknown")));
+        return false;
+    }
+
+
+    static setRole(role) {
+
+    console.log("setRole ->", role);
+
+    this.state.role = role;
+
+    EventBus.emit("roleChanged", role);
+
+}
+
+
+    static getRole() {
+
+        return this.state.role;
+
+    }
+
+    static getSection(role) {
+        const currentRole = role || this.state.role;
+        if (["paintingAll", "processing", "sanding", "painting", "armSanding", "armPainting"].includes(currentRole)) return "malarka";
+        if (currentRole === "master") return "production_master";
+        if (["productionAll", "launch", "sawing", "edging", "cnc", "preparation", "assembly", "packaging", "delivery"].includes(currentRole)) return "production";
+        if (["installationAll", "installation", "delivered"].includes(currentRole)) return "installation";
+        if (currentRole === "claims") return "claims";
+        if (currentRole === "allOrders") return "order_queue";
+        if (currentRole === "purchase") return "supply";
+        if (currentRole === "plate") return "plate";
+        if (currentRole === "supplierOrders") return "supplier_orders";
+        if (currentRole === "equipment") return "equipment";
+        if (currentRole === "equipmentInvoices") return "equipment_invoices";
+        if (currentRole === "tabletops") return "tabletops";
+        return "constructors";
+    }
+static setSelectedUser(user) {
+
+    this.state.selectedUser = user;
+
+    EventBus.emit(
+        "selectedUserChanged",
+        user
+    );
+
+}
+
+static getSelectedUser() {
+
+    return this.state.selectedUser;
+
+}
+
+    static loadOrders() {
+
+        const requestVersion = ++this.requestVersion;
+        this.state.ui.loading = true;
+
+        const section = this.getSection();
+        return new Promise((resolve, reject) => ApiClient.getOrders(section,
+
+            (data) => {
+
+                if (requestVersion !== this.requestVersion) {
+                    resolve({ stale: true, data: data });
+                    return;
+                }
+
+                if (!this.validateAppVersion(data && data.appVersion)) {
+                    this.state.ui.loading = false;
+                    reject(new Error("APP_VERSION_MISMATCH|client=" + String(window.APP_VERSION || "unknown") + "|server=" + String((data || {}).appVersion || "unknown")));
+                    return;
+                }
+                this.applySnapshot(data);
+                this.state.ui.loading = false;
+
+                resolve(data);
+
+            },
+
+            (error) => {
+
+                if (requestVersion === this.requestVersion) {
+                    this.state.ui.loading = false;
+                    EventBus.emit("error", error);
+                }
+
+                reject(error);
+
+            }
+
+        ));
+
+    }
+
+    static applySnapshot(data) {
+        if (data.section && data.section !== this.getSection()) {
+            return false;
+        }
+        this.state.orders = data.orders || [];
+        this.state.dictionaries = data.dictionaries || {};
+        this.state.paintingNorms = data.paintingNorms || null;
+        EventBus.emit("ordersChanged", this.state.orders);
+        EventBus.emit("dictionariesChanged", this.state.dictionaries);
+        return true;
+    }
+
+    static applyActionSnapshot(data) {
+        // Отменяем влияние уже выполняющихся ручных обновлений.
+        if (!this.validateAppVersion(data && data.appVersion)) return false;
+        this.requestVersion += 1;
+        this.state.ui.loading = false;
+        this.applySnapshot(data);
+    }
+
+    static applyActionPatch(patch) {
+        if (!patch || !patch.key || !patch.values) {
+            throw new Error("Сервер не вернул изменения заказа.");
+        }
+        this.requestVersion += 1;
+        this.state.ui.loading = false;
+        this.state.orders = this.state.orders.map(order => {
+            const orderKey = order.orderKey || order.key;
+            return orderKey === patch.key || order.key === patch.key
+                ? Object.assign({}, order, patch.values)
+                : order;
+        });
+        EventBus.emit("ordersChanged", this.state.orders);
+    }
+
+}
+
+</script>

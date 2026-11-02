@@ -1,0 +1,83 @@
+<script>
+class TabletopView {
+    static initialized = false;
+    static items = [];
+
+    static init() {
+        if (this.initialized) return;
+        this.initialized = true;
+        document.getElementById("addTabletopBtn").onclick = () => this.openCreate();
+        document.getElementById("cancelTabletop").onclick = () => this.closeModal();
+        document.getElementById("saveTabletop").onclick = () => this.save();
+        document.getElementById("tabletopSearch").oninput = () => QueueView.render();
+        document.getElementById("tabletopStatusFilter").onchange = () => QueueView.render();
+        document.getElementById("uploadTabletopProposalBtn").onclick = () => document.getElementById("tabletopProposalInput").click();
+        document.getElementById("tabletopProposalInput").onchange = event => this.uploadProposal(event.target.files && event.target.files[0]);
+    }
+
+    static toggle(visible) {
+        const toolbar = document.getElementById("tabletopToolbar"); const add = document.getElementById("addTabletopBtn");
+        const addOrder = document.getElementById("addOrderBtn"); const statistics = document.getElementById("statisticsPanel");
+        document.body.classList.toggle("tabletop-section-active", visible);
+        if (toolbar) toolbar.classList.toggle("hidden", !visible);
+        if (add) { add.classList.toggle("hidden", !visible); add.disabled = visible && !(Store.state.dictionaries.clients || []).length; }
+        if (addOrder) addOrder.classList.toggle("hidden", visible || ["purchase", "plate", "equipment"].includes(Store.getRole()));
+        if (statistics) statistics.classList.toggle("hidden", visible || ["purchase", "plate", "equipment"].includes(Store.getRole()));
+    }
+
+    static initFilters() { const title = document.getElementById("filterTitle"); const panel = document.getElementById("userButtons"); if (title) title.textContent = "🪨 Заказы на столешницы"; if (panel) panel.innerHTML = ""; }
+
+    static render(items) {
+        this.items = items || [];
+        const add = document.getElementById("addTabletopBtn"); if (add && Store.getRole() === "tabletops") add.disabled = !(Store.state.dictionaries.clients || []).length;
+        const filtered = this.getFilteredItems(); const container = document.getElementById("ordersContainer"); const total = document.getElementById("totalOrders");
+        if (total) total.textContent = "Заказов на столешницы: " + filtered.length;
+        if (!filtered.length) { container.innerHTML = `<div class="block"><div class="supply-empty">Нет заказов на столешницы. Нажмите «Добавить столешницу».</div></div>`; return; }
+        container.innerHTML = `<div class="block"><div class="table-wrap"><table class="supply-table tabletop-table"><thead><tr><th>Договор</th><th>Клиент</th><th>Наименование</th><th>Менеджер</th><th>Поставщик</th><th>Статус</th></tr></thead><tbody>${filtered.map(item => this.renderRow(item)).join("")}</tbody></table></div></div>`;
+        container.querySelectorAll("[data-tabletop-open]").forEach(button => button.onclick = () => this.openEdit(button.dataset.tabletopOpen));
+        container.querySelectorAll("[data-tabletop-supplier]").forEach(select => select.onchange = () => this.quickSupplier(select.dataset.tabletopSupplier, select.value, select));
+        container.querySelectorAll("[data-tabletop-status]").forEach(select => select.onchange = () => this.quickStatus(select.dataset.tabletopStatus, select.value, select));
+    }
+
+    static renderRow(item) {
+        const dictionaries = Store.state.dictionaries || {}; const suppliers = this.withCurrent(dictionaries.activeSuppliers || [], item.supplier); const statuses = dictionaries.tabletopStatuses || ["Заказать", "Счет", "Оплачен", "Доставлен"];
+        return `<tr class="tabletop-status-${statuses.indexOf(item.status)}"><td>${this.escape(item.contract)}</td><td>${this.escape(item.client)}</td><td><button class="tabletop-name-btn" data-tabletop-open="${this.escape(item.id)}">${this.escape(item.name)}</button></td><td>${this.escape(item.manager)}</td><td><select class="supplier-select" data-tabletop-supplier="${this.escape(item.id)}"><option value="">Не выбран</option>${suppliers.map(value => this.option(value, item.supplier)).join("")}</select></td><td><select class="purchase-status-select" data-tabletop-status="${this.escape(item.id)}">${statuses.map(value => this.option(value, item.status)).join("")}</select></td></tr>`;
+    }
+
+    static getFilteredItems() {
+        const query = String(document.getElementById("tabletopSearch")?.value || "").trim().toLowerCase(); const status = document.getElementById("tabletopStatusFilter")?.value || "";
+        return this.items.filter(item => (!status || item.status === status) && (!query || [item.contract, item.client, item.name, item.manager, item.supplier].some(value => String(value || "").toLowerCase().includes(query))));
+    }
+
+    static openCreate() { this.fillForm(null); document.getElementById("tabletopModalTitle").textContent = "➕ Новая столешница"; document.getElementById("tabletopProposalSection").classList.add("hidden"); document.getElementById("tabletopModal").classList.remove("hidden"); }
+    static openEdit(id) { const item = this.items.find(candidate => candidate.id === id); if (!item) return QueueView.showMessage("Заказ на столешницу не найден."); this.fillForm(item); document.getElementById("tabletopModalTitle").textContent = "🪨 Карточка столешницы"; document.getElementById("tabletopProposalSection").classList.remove("hidden"); document.getElementById("tabletopModal").classList.remove("hidden"); this.loadProposals(id); }
+
+    static fillForm(item) {
+        const dictionaries = Store.state.dictionaries || {}; const clients = dictionaries.clients || []; const client = item ? item.client : (clients[0] || "");
+        document.getElementById("tabletopId").value = item ? item.id : "";
+        document.getElementById("tabletopClient").innerHTML = clients.map(value => this.option(value, client)).join("") || `<option value="">Нет клиентов</option>`;
+        document.getElementById("tabletopContractList").innerHTML = (dictionaries.contracts || []).map(value => `<option value="${this.escape(value)}"></option>`).join("");
+        document.getElementById("tabletopContract").value = item ? item.contract : "";
+        document.getElementById("tabletopName").value = item ? item.name : "";
+        document.getElementById("tabletopManager").value = item ? item.manager : "";
+        document.getElementById("tabletopSupplier").innerHTML = `<option value="">Не выбран</option>` + this.withCurrent(dictionaries.activeSuppliers || [], item && item.supplier).map(value => this.option(value, item ? item.supplier : "")).join("");
+        document.getElementById("tabletopStatus").innerHTML = (dictionaries.tabletopStatuses || []).map(value => this.option(value, item ? item.status : "Заказать")).join("");
+        document.getElementById("tabletopSupplierUrl").value = item ? item.supplierUrl : "";
+        document.getElementById("tabletopQuoteCost").value = item && item.quoteCost !== "" ? item.quoteCost : "";
+        document.getElementById("tabletopProposalInput").value = ""; document.getElementById("tabletopProposalList").innerHTML = "";
+    }
+
+    static collectForm() { return { client: document.getElementById("tabletopClient").value, contract: document.getElementById("tabletopContract").value, name: document.getElementById("tabletopName").value, manager: document.getElementById("tabletopManager").value, supplier: document.getElementById("tabletopSupplier").value, status: document.getElementById("tabletopStatus").value, supplierUrl: document.getElementById("tabletopSupplierUrl").value, quoteCost: document.getElementById("tabletopQuoteCost").value }; }
+    static save() { const id = document.getElementById("tabletopId").value; const button = document.getElementById("saveTabletop"); button.disabled = true; button.textContent = "Сохранение..."; const request = id ? QueueController.updateTabletop(id, this.collectForm()) : QueueController.createTabletop(this.collectForm()); request.then(() => this.closeModal()).catch(error => QueueView.showMessage(error)).finally(() => { button.disabled = false; button.textContent = "Сохранить"; }); }
+    static quickStatus(id, status, control) { control.disabled = true; QueueController.setTabletopStatus(id, status).catch(error => { QueueView.showMessage(error); QueueView.render(); }).finally(() => control.disabled = false); }
+    static quickSupplier(id, supplier, control) { control.disabled = true; QueueController.setTabletopSupplier(id, supplier).catch(error => { QueueView.showMessage(error); QueueView.render(); }).finally(() => control.disabled = false); }
+    static loadProposals(id) { const list = document.getElementById("tabletopProposalList"); list.innerHTML = `<div class="supply-empty">Загрузка файлов...</div>`; QueueController.getTabletopProposalFiles(id).then(files => this.renderProposals(files)).catch(error => list.innerHTML = `<div class="supply-empty">${this.escape(error.message || error)}</div>`); }
+    static renderProposals(files) { const list = document.getElementById("tabletopProposalList"); list.innerHTML = files && files.length ? files.map(file => `<div class="tabletop-proposal-item"><a href="${this.escape(file.url)}" target="_blank" rel="noopener">${this.escape(file.name)}</a><button type="button" class="reset-btn tabletop-proposal-delete" data-proposal-delete="${this.escape(file.id)}" data-proposal-name="${this.escape(file.name)}">Удалить</button></div>`).join("") : `<div class="supply-empty">КП ещё не прикреплены.</div>`; list.querySelectorAll("[data-proposal-delete]").forEach(button => button.onclick = () => this.deleteProposal(button.dataset.proposalDelete, button.dataset.proposalName)); }
+    static uploadProposal(file) { if (!file) return; if (file.size > 10 * 1024 * 1024) return QueueView.showMessage("Размер файла КП не должен превышать 10 МБ."); const id = document.getElementById("tabletopId").value; if (!id) return QueueView.showMessage("Сначала сохраните заказ на столешницу."); const button = document.getElementById("uploadTabletopProposalBtn"); button.disabled = true; button.textContent = "Загрузка..."; const reader = new FileReader(); reader.onload = () => { const base64 = String(reader.result || "").split(",")[1] || ""; QueueController.uploadTabletopProposalFile(id, { name: file.name, mimeType: file.type, base64: base64 }).then(files => this.renderProposals(files)).catch(error => QueueView.showMessage(error)).finally(() => { button.disabled = false; button.textContent = "Прикрепить КП"; document.getElementById("tabletopProposalInput").value = ""; }); }; reader.onerror = () => { button.disabled = false; button.textContent = "Прикрепить КП"; QueueView.showMessage("Не удалось прочитать файл КП."); }; reader.readAsDataURL(file); }
+    static deleteProposal(fileId, name) { if (!confirm(`Удалить файл «${name}»? Он будет перемещён в корзину Google Drive.`)) return; QueueController.deleteTabletopProposalFile(document.getElementById("tabletopId").value, fileId).then(files => this.renderProposals(files)).catch(error => QueueView.showMessage(error)); }
+    static closeModal() { document.getElementById("tabletopModal").classList.add("hidden"); document.getElementById("tabletopProposalInput").value = ""; }
+    static withCurrent(values, current) { return [...new Set((values || []).concat(current || []).map(value => String(value || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ru")); }
+    static option(value, selected) { return `<option value="${this.escape(value)}"${value === selected ? " selected" : ""}>${this.escape(value)}</option>`; }
+    static escape(value) { return String(value === null || value === undefined ? "" : value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }
+}
+</script>

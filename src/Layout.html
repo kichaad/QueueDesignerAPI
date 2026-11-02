@@ -1,0 +1,1007 @@
+<div class="container">
+
+
+    <div class="header">
+
+        <select id="sectionSelector" class="section-selector" aria-label="Раздел приложения">
+            <option value="constructors">🛠️ Конструкторы</option>
+            <option value="malarka">🎨 Малярка</option>
+            <option value="production">🏭 Производство</option>
+            <option value="supply">📦 Снабжение</option>
+            <option value="equipment">💻 Техника</option>
+            <option value="tabletops">🪨 Столешницы</option>
+            <option value="installation">🚚 Монтажи</option>
+            <option value="order_queue">📋 Очередь заказов</option>
+            <option value="claims">🛡️ Рекламации</option>
+        </select>
+
+
+        <div class="header-actions">
+
+
+            <button
+                class="reset-btn"
+                id="refreshBtn">
+
+                ⟳ Обновить
+
+            </button>
+
+            <button class="reset-btn hidden" id="paintingNormsBtn">Нормы</button>
+            <button class="reset-btn hidden" id="addClaimBtn">➕ Добавить рекламацию</button>
+
+            <button class="reset-btn hidden" id="supplySuppliersBtn">🏷 Поставщики</button>
+            <button class="reset-btn hidden" id="consumablesMappingBtn">☑ Сопоставление расходников</button>
+            <button class="reset-btn hidden" id="searchSupplyArticlesBtn">⌕ Поиск артикулов</button>
+            <button class="reset-btn hidden" id="loadExpoCatalogBtn">⇩ Загрузить каталог Expo</button>
+
+
+            <button
+                class="reset-btn"
+                id="addOrderBtn">
+
+                ➕ Добавить заказ
+
+            </button>
+
+            <button class="reset-btn hidden" id="exportAllOrdersExcelBtn">⇩ Выгрузить Excel</button>
+            <button class="reset-btn hidden" id="exportProductionExcelBtn">⇩ Выгрузить Excel</button>
+            <button class="reset-btn hidden" id="createBasisSpecificationBtn">📐 Создать спецификацию</button>
+            <input id="basisSpecificationInput" type="file" accept=".xml,application/xml,text/xml" class="hidden">
+            <button class="reset-btn hidden" id="exportCurrentListExcelBtn">⇩ Выгрузить Excel</button>
+
+            <button class="reset-btn hidden" id="addEquipmentBtn">➕ Добавить технику</button>
+            <button class="reset-btn hidden" id="addTabletopBtn">➕ Добавить столешницу</button>
+            <button class="reset-btn hidden" id="sandingStaffBtn">👥 Шлифовщики: 0</button>
+
+
+            <div class="toggle-group" id="designRoleTabs">
+
+
+                <button
+                    class="toggle-btn"
+                    id="btnManagers">
+
+                    👩‍💼 Менеджеры
+
+                </button>
+
+
+                <button
+                    class="toggle-btn"
+                    id="btnTechnologists">
+
+                    ⚙️ Технолог
+
+                </button>
+
+                <button
+                    class="toggle-btn active"
+                    id="btnConstructors">
+
+                    🛠️ Конструкторы
+
+                </button>
+
+
+            </div>
+
+            <div class="toggle-group hidden" id="productionRoleTabs">
+                <button class="toggle-btn" id="btnPaintingAll">Все в покраске</button>
+                <button class="toggle-btn active" id="btnProcessing">Буфер</button>
+                <button class="toggle-btn" id="btnSanding">Шлифовка</button>
+                <button class="toggle-btn" id="btnPainting">Покраска</button>
+                <button class="toggle-btn" id="btnArmSanding">АРМ Шлифовщик</button>
+                <button class="toggle-btn" id="btnArmPainting">АРМ Маляр</button>
+            </div>
+
+            <div class="toggle-group hidden" id="manufacturingRoleTabs">
+                <button class="toggle-btn active" id="btnMaster">АРМ мастера</button>
+                <button class="toggle-btn" id="btnLaunch">Запуск</button>
+                <button class="toggle-btn" id="btnSawing">Распил</button>
+                <button class="toggle-btn" id="btnEdging">Кромка</button>
+                <button class="toggle-btn" id="btnCnc">ЧПУ</button>
+                <button class="toggle-btn" id="btnPreparation">Подготовка</button>
+                <button class="toggle-btn" id="btnAssembly">Сборка</button>
+                <button class="toggle-btn" id="btnPackaging">Упаковка</button>
+                <button class="toggle-btn" id="btnDelivery">СГП</button>
+            </div>
+
+            <div class="toggle-group hidden" id="installationRoleTabs">
+                <button class="toggle-btn" id="btnInstallationAll">Все монтажи</button>
+                <button class="toggle-btn active" id="btnInstallation">Монтаж</button>
+                <button class="toggle-btn" id="btnDelivered">Сданы</button>
+            </div>
+
+            <div class="toggle-group hidden" id="orderQueueRoleTabs">
+                <button class="toggle-btn active" id="btnAllOrders">Все заказы</button>
+            </div>
+
+            <div class="toggle-group hidden" id="supplyRoleTabs">
+                <button class="toggle-btn active" id="btnPurchase">Закупка</button>
+                <button class="toggle-btn" id="btnPlate">Плитный материал</button>
+                <button class="toggle-btn" id="btnSupplierOrders">Заказы поставщикам</button>
+            </div>
+
+
+        </div>
+
+
+    </div>
+
+
+
+
+    <div class="subtitle">
+
+
+        <span id="currentDate"></span>
+
+
+        <span id="totalOrders">
+
+            Всего заказов: 0
+
+        </span>
+
+
+        <span class="autosave">
+
+            💾 Данные сохраняются автоматически
+
+        </span>
+
+
+    </div>
+
+
+
+
+    <!-- Панель выбора пользователя -->
+
+    <div class="filter-panel">
+
+
+        <div class="filter-item">
+
+
+            <label id="filterTitle">
+
+                🛠️ Конструкторы
+
+            </label>
+
+
+            <div 
+                id="userButtons"
+                class="button-filter">
+
+            </div>
+
+
+        </div>
+
+
+    </div>
+
+
+
+
+    <!-- скрытые фильтры -->
+
+    <div style="display:none">
+
+
+        <select id="managerFilter">
+
+            <option value="">
+                Все менеджеры
+            </option>
+
+        </select>
+
+
+        <select id="constructorFilter">
+
+            <option value="">
+                Все конструкторы
+            </option>
+
+        </select>
+
+
+    </div>
+
+
+
+
+
+    <div id="statisticsPanel">
+
+    </div>
+
+    <div id="supplyToolbar" class="supply-toolbar hidden">
+        <button class="reset-btn" id="importSupplyBtn">⬆ Импорт спецификации</button>
+        <button class="reset-btn" id="clearSupplyOrderBtn">🗑 Очистить материалы заказа</button>
+        <button class="reset-btn" id="supplierOrdersBtn">📋 Заказы поставщика</button>
+        <input id="supplyFileInput" type="file" accept=".xls,.xml,application/vnd.ms-excel,application/xml,text/xml" class="hidden">
+        <button class="reset-btn hidden" id="importPlateBtn">⬆ Импорт раскроя</button>
+        <input id="plateFolderInput" type="file" accept=".pdf,application/pdf" webkitdirectory directory multiple class="hidden">
+        <input id="plateFileInput" type="file" accept=".pdf,application/pdf" class="hidden">
+        <input id="supplySearch" type="search" placeholder="Поиск: договор, клиент, изделие, материал">
+        <select id="supplyProductFilter" aria-label="Фильтр снабжения по изделию"><option value="">Все изделия</option></select>
+        <select id="supplyStatusFilter">
+            <option value="">Все статусы</option>
+            <option>Новый</option>
+            <option>Заказ поставщику</option>
+            <option>Счёт получен</option>
+            <option>Оплачено</option>
+            <option>Товар получен</option>
+        </select>
+    </div>
+
+    <div id="supplierOrdersToolbar" class="supply-toolbar hidden">
+        <button class="reset-btn" id="createSupplierOrderBtn">＋ Сформировать заказ</button>
+        <select id="supplierOrdersSupplierFilter" aria-label="Фильтр заказов по поставщику"><option value="">Все поставщики</option></select>
+        <select id="supplierOrdersStatusFilter" aria-label="Фильтр заказов по статусу"><option value="">Все статусы</option></select>
+    </div>
+
+    <div id="equipmentToolbar" class="supply-toolbar hidden">
+        <button type="button" class="reset-btn" id="equipmentInvoicesBtn">🧾 Счета техники</button>
+        <input id="equipmentSearch" type="search" placeholder="Поиск: договор, клиент, техника, модель">
+        <select id="equipmentClientFilter" aria-label="Фильтр по клиенту">
+            <option value="">Все клиенты</option>
+        </select>
+        <select id="equipmentStatusFilter">
+            <option value="">Все статусы</option>
+            <option>Заказать</option>
+            <option>Счет</option>
+            <option>Оплачен</option>
+            <option>Доставлен</option>
+            <option>Нет в наличии</option>
+        </select>
+        <button type="button" class="reset-btn equipment-copy-list" id="copyEquipmentListBtn" disabled>📋 Скопировать список клиенту</button>
+    </div>
+
+    <div id="equipmentInvoicesToolbar" class="supply-toolbar hidden">
+        <button type="button" class="reset-btn" id="backToEquipmentBtn">← Техника</button>
+        <button type="button" class="reset-btn" id="addEquipmentInvoiceBtn">＋ Добавить счёт</button>
+        <input id="equipmentInvoiceSearch" type="search" placeholder="Поиск: номер, поставщик, договор, техника">
+        <select id="equipmentInvoiceSupplierFilter"><option value="">Все поставщики</option></select>
+        <select id="equipmentInvoiceStatusFilter"><option value="">Все статусы</option><option>Счёт</option><option>Оплачен</option></select>
+    </div>
+
+    <div id="tabletopToolbar" class="supply-toolbar hidden">
+        <input id="tabletopSearch" type="search" placeholder="Поиск: договор, клиент, столешница, менеджер">
+        <select id="tabletopStatusFilter">
+            <option value="">Все статусы</option><option>Заказать</option><option>Счет</option><option>Оплачен</option><option>Доставлен</option>
+        </select>
+    </div>
+
+
+
+
+    <div id="ordersContainer">
+
+    </div>
+
+
+
+</div>
+
+<div id="startSectionModal" class="modal start-section-modal">
+    <div class="modal-content start-section-content">
+        <h2>Выберите раздел</h2>
+        <p>Загрузим только данные выбранного раздела.</p>
+        <div class="start-section-grid">
+            <button type="button" class="start-section-card" data-start-role="constructor"><span>🛠️</span>Конструкторы</button>
+            <button type="button" class="start-section-card" data-start-role="processing"><span>🎨</span>Малярка</button>
+            <button type="button" class="start-section-card" data-start-role="master"><span>🏭</span>Производство</button>
+            <button type="button" class="start-section-card" data-start-role="purchase"><span>📦</span>Снабжение<small>Закупка</small></button>
+            <button type="button" class="start-section-card" data-start-role="equipment"><span>💻</span>Техника<small>Закупка</small></button>
+            <button type="button" class="start-section-card" data-start-role="tabletops"><span>🪨</span>Столешницы<small>Заказы</small></button>
+            <button type="button" class="start-section-card" data-start-role="plate"><span>🪵</span>Плитный материал</button>
+            <button type="button" class="start-section-card" data-start-role="installation"><span>🚚</span>Монтажи</button>
+            <button type="button" class="start-section-card" data-start-role="claims"><span>🛡️</span>Рекламации</button>
+            <button type="button" class="start-section-card" data-start-role="allOrders"><span>📋</span>Очередь заказов</button>
+        </div>
+    </div>
+</div>
+
+<div id="tabletopModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="tabletopModalTitle">
+    <div class="modal-content tabletop-modal-content">
+        <h2 id="tabletopModalTitle">Новая столешница</h2>
+        <input type="hidden" id="tabletopId">
+        <div class="tabletop-form-grid">
+            <div class="form-row"><label for="tabletopClient">Клиент</label><select id="tabletopClient"></select></div>
+            <div class="form-row"><label for="tabletopContract">Договор</label><input id="tabletopContract" list="tabletopContractList" autocomplete="off" placeholder="Выберите из подсказки или введите номер"><datalist id="tabletopContractList"></datalist></div>
+            <div class="form-row tabletop-name-row"><label for="tabletopName">Наименование столешницы</label><input id="tabletopName" autocomplete="off"></div>
+            <div class="form-row"><label for="tabletopManager">Менеджер</label><input id="tabletopManager" autocomplete="off" placeholder="Введите имя менеджера"></div>
+            <div class="form-row"><label for="tabletopSupplier">Поставщик</label><select id="tabletopSupplier"></select></div>
+            <div class="form-row"><label for="tabletopStatus">Статус</label><select id="tabletopStatus"></select></div>
+            <div class="form-row"><label for="tabletopQuoteCost">Стоимость КП, ₽</label><input id="tabletopQuoteCost" type="number" min="0" step="0.01"></div>
+            <div class="form-row tabletop-url-row"><label for="tabletopSupplierUrl">Ссылка на сайт поставщика</label><input id="tabletopSupplierUrl" type="url" placeholder="https://example.ru/item"></div>
+        </div>
+        <section id="tabletopProposalSection" class="tabletop-proposals hidden">
+            <div class="tabletop-proposal-header"><h3>Коммерческие предложения</h3><button class="reset-btn" type="button" id="uploadTabletopProposalBtn">Прикрепить КП</button><input class="hidden" id="tabletopProposalInput" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"></div>
+            <div id="tabletopProposalList" class="tabletop-proposal-list"></div>
+        </section>
+        <div class="modal-actions"><button class="reset-btn" type="button" id="cancelTabletop">Отмена</button><button class="reset-btn" type="button" id="saveTabletop">Сохранить</button></div>
+    </div>
+</div>
+
+<div id="equipmentModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="equipmentModalTitle">
+    <div class="modal-content equipment-modal-content">
+        <h2 id="equipmentModalTitle">Новая техника</h2>
+        <input type="hidden" id="equipmentId">
+        <div class="equipment-form-grid">
+            <div class="form-row">
+                <label for="equipmentClient">Клиент</label>
+                <select id="equipmentClient"></select>
+            </div>
+            <div class="form-row">
+                <label for="equipmentContract">Договор</label>
+                <input id="equipmentContract" list="equipmentContractList" autocomplete="off" placeholder="Выберите из подсказки или введите номер">
+                <datalist id="equipmentContractList"></datalist>
+            </div>
+            <div class="form-row">
+                <label for="equipmentName">Наименование техники</label>
+                <input id="equipmentName" autocomplete="off">
+            </div>
+            <div class="form-row">
+                <label for="equipmentModel">Модель</label>
+                <input id="equipmentModel" autocomplete="off">
+            </div>
+            <div class="form-row">
+                <label for="equipmentQuantity">Количество</label>
+                <input id="equipmentQuantity" type="number" min="1" step="1" value="1">
+            </div>
+            <div class="form-row">
+                <label for="equipmentUnitPrice">Цена за единицу, ₽</label>
+                <input id="equipmentUnitPrice" type="number" min="0" step="0.01">
+            </div>
+            <div class="form-row">
+                <label for="equipmentManager">Менеджер</label>
+                <select id="equipmentManager"></select>
+            </div>
+            <div class="form-row">
+                <label for="equipmentSupplier">Поставщик</label>
+                <select id="equipmentSupplier"></select>
+            </div>
+            <div class="form-row">
+                <label for="equipmentStatus">Статус</label>
+                <select id="equipmentStatus"></select>
+            </div>
+            <div class="form-row equipment-url-row">
+                <label for="equipmentSupplierUrl">Ссылка на сайт поставщика</label>
+                <input id="equipmentSupplierUrl" type="url" placeholder="https://example.ru/item">
+            </div>
+        </div>
+        <div class="equipment-total">Сумма: <strong id="equipmentTotal">—</strong></div>
+        <section id="equipmentProposalSection" class="equipment-proposals hidden">
+            <div class="equipment-proposal-header">
+                <h3>Коммерческие предложения</h3>
+                <button class="reset-btn" type="button" id="uploadEquipmentProposalBtn">Прикрепить КП</button>
+                <input class="hidden" id="equipmentProposalInput" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,image/*">
+            </div>
+            <div id="equipmentProposalList" class="equipment-proposal-list"></div>
+        </section>
+        <section id="equipmentInvoicesSection" class="equipment-proposals hidden">
+            <div class="equipment-proposal-header"><h3>Счета закупки</h3><button class="reset-btn" type="button" id="openEquipmentInvoicesFromCard">Открыть реестр</button></div>
+            <div id="equipmentInvoicesList" class="equipment-proposal-list"></div>
+        </section>
+        <div class="modal-actions">
+            <button class="reset-btn" type="button" id="cancelEquipment">Отмена</button>
+            <button class="reset-btn" type="button" id="saveEquipment">Сохранить</button>
+        </div>
+    </div>
+</div>
+
+<div id="equipmentInvoiceModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="equipmentInvoiceModalTitle">
+    <div class="modal-content equipment-invoice-modal-content">
+        <h2 id="equipmentInvoiceModalTitle">Счёт техники</h2>
+        <input type="hidden" id="equipmentInvoiceId">
+        <div class="equipment-invoice-grid">
+            <div class="form-row"><label for="equipmentInvoiceNumber">Номер счёта</label><input id="equipmentInvoiceNumber" autocomplete="off"></div>
+            <div class="form-row"><label for="equipmentInvoiceDate">Дата счёта</label><input id="equipmentInvoiceDate" type="date"></div>
+            <div class="form-row"><label for="equipmentInvoiceSupplier">Поставщик</label><input id="equipmentInvoiceSupplier" list="equipmentInvoiceSupplierList" autocomplete="off"><datalist id="equipmentInvoiceSupplierList"></datalist></div>
+            <div class="form-row"><label for="equipmentInvoiceAmount">Сумма, ₽</label><input id="equipmentInvoiceAmount" type="number" min="0" step="0.01"></div>
+            <div class="form-row"><label for="equipmentInvoiceStatus">Статус оплаты</label><select id="equipmentInvoiceStatus"><option>Счёт</option><option>Оплачен</option></select></div>
+            <div class="form-row"><label for="equipmentInvoiceFile">Файл счёта</label><input id="equipmentInvoiceFile" type="file" accept=".pdf,.xls,.xlsx,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></div>
+        </div>
+        <p id="equipmentInvoiceHint" class="order-action-name">Выберите файл счёта, затем отметьте позиции и укажите цены.</p>
+        <div id="equipmentInvoiceLines" class="equipment-invoice-lines"></div>
+        <div class="modal-actions"><button class="reset-btn hidden" type="button" id="markEquipmentInvoicePaid">Отметить оплаченным</button><button class="reset-btn" type="button" id="cancelEquipmentInvoice">Отмена</button><button class="reset-btn" type="button" id="saveEquipmentInvoice">Сохранить счёт</button></div>
+    </div>
+</div>
+
+<div id="plateSourceModal" class="modal hidden">
+    <div class="modal-content supply-import-content">
+        <h2>Источник раскроя</h2>
+        <p class="order-action-name">Выберите всю папку «Раскрой» или один PDF для проверки.</p>
+        <div class="modal-actions">
+            <button class="reset-btn" id="choosePlateFolder">📁 Выбрать папку</button>
+            <button class="reset-btn" id="choosePlateFile">📄 Выбрать файл</button>
+            <button class="reset-btn" id="cancelPlateSource">Отмена</button>
+        </div>
+    </div>
+</div>
+
+<div id="plateImportModal" class="modal supply-import-modal hidden">
+    <div class="modal-content supply-import-content">
+        <h2>Импорт плитного материала</h2>
+        <p id="plateImportFolder" class="order-action-name">Выберите папку «Раскрой»: договор будет найден по полному названию проекта в PDF-картах.</p>
+        <div class="form-row"><label for="plateContractSelect">Договор</label><select id="plateContractSelect"></select></div>
+        <div class="form-row"><label for="plateOrderSelect">Изделие</label><select id="plateOrderSelect"></select></div>
+        <div id="platePreviewContainer" class="supply-preview hidden"></div>
+        <div class="modal-actions"><button class="reset-btn" id="cancelPlateImport">Отмена</button><button class="reset-btn" id="confirmPlateImport">Проверить карты раскроя</button></div>
+    </div>
+</div>
+
+<div id="supplierOrdersModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="supplierOrdersTitle">
+    <div class="modal-content supplier-orders-modal-content">
+        <h2 id="supplierOrdersTitle">Заказы поставщикам</h2>
+        <p class="order-action-name">Выберите поставщика, отметьте нужные позиции и сформируйте заказ. Неотмеченные строки останутся в очереди закупки.</p>
+        <div class="supplier-order-create">
+            <select id="supplierOrderSupplier" aria-label="Поставщик для заказа"></select>
+            <button class="reset-btn" id="loadSupplierOrderCandidates">Подобрать позиции</button>
+        </div>
+        <section id="supplierOrderPicker" class="supplier-order-picker hidden">
+            <div class="supplier-order-picker-header"><h3>Подбор позиций</h3><input id="supplierOrderSearch" type="search" placeholder="Поиск: договор, клиент, изделие, артикул, материал"></div>
+            <div id="supplierOrderProducts" class="supplier-order-products"></div>
+            <div class="supplier-order-actions"><button class="reset-btn" id="selectAllSupplierOrderRows">Выбрать всё</button><button class="reset-btn" id="clearSupplierOrderRows">Снять всё</button><button class="reset-btn" id="selectSupplierOrderProducts">Только выбранные изделия</button><span id="supplierOrderSummary"></span><button class="reset-btn" id="createSupplierOrder">Сформировать заказ</button></div>
+            <div id="supplierOrderCandidates" class="supplier-order-candidates"></div>
+        </section>
+        <div id="supplierOrdersList" class="supplier-orders-list"></div>
+        <section id="supplierOrderDetails" class="supplier-order-details hidden"></section>
+        <div class="modal-actions"><button class="reset-btn" id="closeSupplierOrders">Закрыть</button></div>
+    </div>
+</div>
+
+<div id="supplierOrderDetailsModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="supplierOrderDetailsTitle">
+    <div class="modal-content supplier-order-details-modal-content">
+        <h2 id="supplierOrderDetailsTitle">Состав заказа поставщику</h2>
+        <div id="supplierOrderDetailsContent" class="supplier-order-details"></div>
+        <div class="modal-actions"><button class="reset-btn" id="closeSupplierOrderDetailsModal">Закрыть</button></div>
+    </div>
+</div>
+
+<div id="supplierOrderInvoiceQuickModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="supplierOrderInvoiceQuickTitle">
+    <div class="modal-content supplier-invoice-quick-modal-content">
+        <h2 id="supplierOrderInvoiceQuickTitle">Прикрепить счёт</h2>
+        <p id="supplierOrderInvoiceQuickOrder" class="order-action-name"></p>
+        <div class="form-row"><label for="supplierOrderInvoiceQuickNumber">Новый номер счёта</label><input id="supplierOrderInvoiceQuickNumber" type="text" autocomplete="off" placeholder="Необязательно"></div>
+        <div class="form-row"><label for="supplierOrderInvoiceQuickFile">PDF-файл счёта</label><input id="supplierOrderInvoiceQuickFile" type="file" accept="application/pdf,.pdf"></div>
+        <p class="order-action-name">Файл будет прикреплён без распознавания и сверки состава.</p>
+        <div class="modal-actions"><button class="reset-btn" id="cancelSupplierOrderInvoiceQuick">Отмена</button><button class="reset-btn" id="saveSupplierOrderInvoiceQuick">Прикрепить счёт</button></div>
+    </div>
+</div>
+
+<div id="supplySuppliersModal" class="modal hidden">
+    <div class="modal-content suppliers-modal-content">
+        <h2>Поставщики и прайсы</h2>
+        <p class="order-action-name">Укажите системное название поставщика и варианты его названия в спецификациях. Для сайта шаблон поиска определяется автоматически; при необходимости укажите URL с {query}.</p>
+        <div id="supplySuppliersList" class="suppliers-list"></div>
+        <div class="supplier-editor">
+            <input id="supplierNameInput" type="text" placeholder="Название в системе">
+            <input id="supplierAliasesInput" type="text" placeholder="Названия в спецификации, через запятую">
+            <input id="supplierPriceUrlInput" type="url" placeholder="Сайт, папка или файл для поиска">
+            <input id="supplierSearchTemplateInput" type="url" placeholder="Шаблон поиска сайта: https://.../?q={query}">
+            <input id="supplierNoteInput" type="text" placeholder="Примечание (необязательно)">
+            <label class="supplier-active"><input id="supplierActiveInput" type="checkbox" checked> Использовать для сопоставления</label>
+            <button class="reset-btn" id="saveSupplySupplier">Сохранить поставщика</button>
+        </div>
+        <div class="modal-actions"><button class="reset-btn" id="closeSupplySuppliers">Закрыть</button></div>
+    </div>
+</div>
+
+<div id="consumablesMappingModal" class="modal hidden">
+    <div class="modal-content consumables-modal-content">
+        <h2>Сопоставление расходников</h2>
+        <p class="order-action-name">Отметьте расходники или материалы, которые должны попадать в плитную очередь.</p>
+        <div id="consumablesCandidatesList" class="consumables-list"></div>
+        <div class="modal-actions"><button class="reset-btn" id="closeConsumablesMapping">Отмена</button><button class="reset-btn" id="saveConsumablesMapping">Сохранить расходники</button></div>
+    </div>
+</div>
+
+<div id="supplyImportModal" class="modal supply-import-modal hidden">
+    <div class="modal-content supply-import-content">
+        <h2>Импорт спецификации</h2>
+        <p id="supplyImportFile" class="order-action-name"></p>
+        <div class="form-row">
+            <label for="supplyOrderSelect">Изделие для импорта</label>
+            <select id="supplyOrderSelect"></select>
+        </div>
+        <p id="supplyImportOrderHint" class="order-action-name hidden"></p>
+        <div id="supplyTablesContainer" class="supply-tables hidden"></div>
+        <div id="supplyPreviewContainer" class="supply-preview hidden"></div>
+        <div class="modal-actions">
+            <button class="reset-btn" id="cancelSupplyImport">Отмена</button>
+            <button class="reset-btn" id="confirmSupplyImport">Проверить материалы</button>
+        </div>
+    </div>
+</div>
+
+<div id="addClaimModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="addClaimTitle">
+    <div class="modal-content">
+        <h2 id="addClaimTitle">Добавить рекламацию</h2>
+        <div class="form-row"><label for="claimMode">Изделие</label><select id="claimMode"><option value="existing">Существующее</option><option value="new">Новое</option></select></div>
+        <div id="claimExistingFields">
+            <div class="form-row"><label for="claimSearch">Поиск по договору, клиенту или изделию</label><input id="claimSearch" autocomplete="off"></div>
+            <div class="form-row"><label for="claimCandidate">Смонтированное изделие</label><select id="claimCandidate"></select></div>
+        </div>
+        <div id="claimNewFields" class="hidden">
+            <div class="form-row"><label for="claimContract">Договор (необязательно)</label><input id="claimContract"></div>
+            <div class="form-row"><label for="claimClient">Клиент</label><input id="claimClient"></div>
+            <div class="form-row"><label for="claimProduct">Изделие</label><input id="claimProduct"></div>
+            <div class="form-row"><label for="claimManager">Менеджер</label><select id="claimManager"></select></div>
+        </div>
+        <div class="form-row"><label id="claimCommentLabel" for="claimCommentInput">Комментарий рекламации</label><textarea id="claimCommentInput" rows="4"></textarea></div>
+        <div class="modal-actions"><button type="button" class="reset-btn" id="cancelAddClaim">Отмена</button><button type="button" class="reset-btn" id="saveAddClaim">Добавить</button></div>
+    </div>
+</div>
+
+<div id="clearSupplyOrderModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="clearSupplyOrderTitle">
+    <div class="modal-content supply-dialog-content">
+        <h2 id="clearSupplyOrderTitle">Очистить материалы заказа</h2>
+        <p class="order-action-name">Будут удалены материалы снабжения и плитные позиции выбранного изделия. Позиции из заказов поставщикам удалять нельзя.</p>
+        <div class="form-row">
+            <label for="clearSupplyOrderSelect">Изделие</label>
+            <select id="clearSupplyOrderSelect"></select>
+        </div>
+        <div class="modal-actions">
+            <button class="reset-btn" id="cancelClearSupplyOrder">Отмена</button>
+            <button class="reset-btn" id="confirmClearSupplyOrder">Очистить</button>
+        </div>
+    </div>
+</div>
+
+<div id="supplyDialogModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="supplyDialogTitle">
+    <div class="modal-content supply-dialog-content">
+        <h2 id="supplyDialogTitle"></h2>
+        <p id="supplyDialogText" class="order-action-name"></p>
+        <div class="modal-actions">
+            <button class="reset-btn" id="supplyDialogCancel">Отмена</button>
+            <button class="reset-btn" id="supplyDialogConfirm">Продолжить</button>
+        </div>
+    </div>
+</div>
+
+<div id="productionDaysModal" class="modal hidden">
+    <div class="modal-content production-days-modal-content">
+        <div class="production-days-modal-header">
+            <h2 id="productionDaysTitle">Параметры расчёта Малярки</h2>
+            <div class="modal-actions production-days-modal-actions">
+                <button class="reset-btn" id="closeProductionDays">Отмена</button>
+                <button class="reset-btn" id="saveProductionDays">Сохранить</button>
+            </div>
+        </div>
+        <p id="productionDaysName" class="order-action-name"></p>
+        <p id="productionDaysFacadeType" class="production-days-facade-type"></p>
+        <div class="painting-area-field">
+            <label for="paintingArea">Общая площадь грунтования/покраски, м²</label>
+            <input id="paintingArea" type="number" min="0.01" step="0.01">
+        </div>
+        <div class="painting-area-field hourly-painting-parameters hidden" id="hourlyFacadeTypeField">
+            <label for="hourlyFacadeType">Тип фасада</label>
+            <select id="hourlyFacadeType">
+                <option value="">Не выбран</option>
+                <option>Гладкий</option><option>Лето</option><option>Зима</option>
+                <option>Фрезеровка</option><option>Сложная фрезеровка</option><option>Волна</option>
+                <option>Шпон</option><option>Глянец</option><option>Шпон глянец</option>
+            </select>
+        </div>
+        <div class="painting-area-field hourly-painting-parameters hidden" id="hourlyPolishingAreaField">
+            <label for="polishingArea">Площадь полировки, м² <small>(для глянца)</small></label>
+            <input id="polishingArea" type="number" min="0.01" step="0.01">
+        </div>
+        <div class="painting-area-field hourly-painting-parameters hidden" id="hourlyBackPaintingAreaField">
+            <label for="backPaintingArea">Площадь тыльной стороны, м²</label>
+            <input id="backPaintingArea" type="number" min="0.01" step="0.01">
+        </div>
+        <div class="painting-area-field hourly-painting-parameters hidden" id="hourlyFrontPaintingAreaField">
+            <label for="frontPaintingArea">Площадь лица и торцов, м²</label>
+            <input id="frontPaintingArea" type="number" min="0.01" step="0.01">
+        </div>
+        <div class="production-days-grid" id="legacyProductionDaysGrid">
+            <div class="production-days-grid-head"><span></span><span>Норма, ч</span><span>Длительность</span><span></span><span></span></div>
+            <label><span>Подготовка</span><span class="operation-norm-cell"><output class="operation-norm-hours" data-operation-norm="preparation">—</output><button type="button" class="operation-norm-details-btn" data-operation-norm-details="preparation" title="Подробный расчёт нормы" aria-label="Подробный расчёт нормы: Подготовка">⋮</button></span><input id="prodPreparation" type="number" min="0.5" step="0.5"><em>дн.</em></label>
+            <label><span>Грунт 1 слой</span><span class="operation-norm-cell"><output class="operation-norm-hours" data-operation-norm="primer1">—</output><button type="button" class="operation-norm-details-btn" data-operation-norm-details="primer1" title="Подробный расчёт нормы" aria-label="Подробный расчёт нормы: Грунт 1 слой">⋮</button></span><input id="prodPrimer1" type="number" min="0.5" step="0.5"><em>дн.</em></label>
+            <label><span>Шлифовка 1 слой</span><span class="operation-norm-cell"><output class="operation-norm-hours" data-operation-norm="sanding1">—</output><button type="button" class="operation-norm-details-btn" data-operation-norm-details="sanding1" title="Подробный расчёт нормы" aria-label="Подробный расчёт нормы: Шлифовка 1 слой">⋮</button></span><input id="prodSanding1" type="number" min="0.5" step="0.5"><em>дн.</em></label>
+            <label><span>Грунт 2 слой</span><span class="operation-norm-cell"><output class="operation-norm-hours" data-operation-norm="primer2">—</output><button type="button" class="operation-norm-details-btn" data-operation-norm-details="primer2" title="Подробный расчёт нормы" aria-label="Подробный расчёт нормы: Грунт 2 слой">⋮</button></span><input id="prodPrimer2" type="number" min="0.5" step="0.5"><em>дн.</em><span class="route-exclusion"><input id="excludePrimer2" type="checkbox"> Исключить</span></label>
+            <label><span>Шлифовка 2 слой</span><span class="operation-norm-cell"><output class="operation-norm-hours" data-operation-norm="sanding2">—</output><button type="button" class="operation-norm-details-btn" data-operation-norm-details="sanding2" title="Подробный расчёт нормы" aria-label="Подробный расчёт нормы: Шлифовка 2 слой">⋮</button></span><input id="prodSanding2" type="number" min="0.5" step="0.5"><em>дн.</em><span class="route-exclusion"><input id="excludeSanding2" type="checkbox"> Исключить</span></label>
+            <label><span>Покраска тыльной стороны</span><span class="operation-norm-cell"><output class="operation-norm-hours" data-operation-norm="backPainting">—</output><button type="button" class="operation-norm-details-btn" data-operation-norm-details="backPainting" title="Подробный расчёт нормы" aria-label="Подробный расчёт нормы: Покраска тыльной стороны">⋮</button></span><input id="prodBackPainting" type="number" min="0.5" step="0.5"><em>дн.</em><span class="route-exclusion"><input id="excludeBackPainting" type="checkbox"> Исключить</span></label>
+            <label><span>Обклейка</span><span class="operation-norm-cell"><output class="operation-norm-hours" data-operation-norm="masking">—</output><button type="button" class="operation-norm-details-btn" data-operation-norm-details="masking" title="Подробный расчёт нормы" aria-label="Подробный расчёт нормы: Обклейка">⋮</button></span><input id="prodMasking" type="number" min="0.5" step="0.5"><em>дн.</em><span class="route-exclusion"><input id="excludeMasking" type="checkbox"> Исключить</span></label>
+            <label><span>Покраска лицевой стороны</span><span class="operation-norm-cell"><output class="operation-norm-hours" data-operation-norm="frontPainting">—</output><button type="button" class="operation-norm-details-btn" data-operation-norm-details="frontPainting" title="Подробный расчёт нормы" aria-label="Подробный расчёт нормы: Покраска лицевой стороны">⋮</button></span><input id="prodFrontPainting" type="number" min="0.5" step="0.5"><em>дн.</em></label>
+            <label class="lacquer-route-toggle"><span>Лаковые операции</span><span></span><span class="route-exclusion"><input id="includeLacquerOperations" type="checkbox"> Добавить в маршрут</span></label>
+            <label><span>Шлифовка перед лаком</span><span class="operation-norm-cell"><output class="operation-norm-hours" data-operation-norm="preLacquerSanding">—</output><button type="button" class="operation-norm-details-btn" data-operation-norm-details="preLacquerSanding" title="Подробный расчёт нормы" aria-label="Подробный расчёт нормы: Шлифовка перед лаком">⋮</button></span><input id="prodPreLacquerSanding" type="number" min="0.5" step="0.5"><em>дн.</em></label>
+            <label><span>Лак</span><span class="operation-norm-cell"><output class="operation-norm-hours" data-operation-norm="lacquer">—</output><button type="button" class="operation-norm-details-btn" data-operation-norm-details="lacquer" title="Подробный расчёт нормы" aria-label="Подробный расчёт нормы: Лак">⋮</button></span><input id="prodLacquer" type="number" min="0.5" step="0.5"><em>дн.</em></label>
+            <label><span>Полировка</span><span class="operation-norm-cell"><output class="operation-norm-hours" data-operation-norm="polishing">—</output><button type="button" class="operation-norm-details-btn" data-operation-norm-details="polishing" title="Подробный расчёт нормы" aria-label="Подробный расчёт нормы: Полировка">⋮</button></span><input id="prodPolishing" type="number" min="0.5" step="0.5"><em>дн.</em></label>
+        </div>
+        <div id="hourlyPaintingParameters" class="hourly-painting-parameters hidden">
+            <div class="production-days-grid hourly-route-options">
+                <label><span>Грунт 2 слой</span><span></span><span></span><span class="route-exclusion"><input id="hourlyExcludePrimer2" type="checkbox"> Исключить</span></label>
+                <label><span>Шлифовка 2 слой</span><span></span><span></span><span class="route-exclusion"><input id="hourlyExcludeSanding2" type="checkbox"> Исключить</span></label>
+                <label><span>Покраска тыльной стороны</span><span></span><span></span><span class="route-exclusion"><input id="hourlyExcludeBackPainting" type="checkbox"> Исключить</span></label>
+                <label><span>Обклейка</span><span></span><span></span><span class="route-exclusion"><input id="hourlyExcludeMasking" type="checkbox"> Исключить</span></label>
+                <label><span>Лаковые операции</span><span></span><span></span><span class="route-exclusion"><input id="hourlyIncludeLacquer" type="checkbox"> Добавить в маршрут</span></label>
+            </div>
+            <div id="paintingNormPreview" class="painting-norm-preview"></div>
+        </div>
+    </div>
+</div>
+
+<div id="operationNormDetailsModal" class="modal norm-details-modal hidden" role="dialog" aria-modal="true" aria-labelledby="operationNormDetailsTitle">
+    <div class="modal-content norm-details-modal-content">
+        <h2 id="operationNormDetailsTitle">Расчёт нормы</h2>
+        <div id="operationNormDetailsBody" class="norm-details-body"></div>
+        <div class="modal-actions">
+            <button type="button" class="reset-btn" id="closeOperationNormDetails">Закрыть</button>
+        </div>
+    </div>
+</div>
+
+<div id="paintingNormsModal" class="modal hidden">
+    <div class="modal-content painting-norms-modal-content">
+        <div class="production-days-modal-header">
+            <div>
+                <h2>Нормы Малярки</h2>
+                <p id="paintingNormsMode" class="order-action-name"></p>
+                <p id="paintingNormSaveStatus" class="painting-norm-save-status hidden" role="status" aria-live="polite"></p>
+            </div>
+            <div class="modal-actions production-days-modal-actions">
+                <button class="reset-btn" id="closePaintingNorms">Закрыть</button>
+                <button class="reset-btn" id="savePaintingNorms">Сохранить</button>
+            </div>
+        </div>
+        <div class="painting-norms-scroll">
+            <section class="painting-norms-section">
+                <div class="painting-norms-section-title"><h3>Профили и типы фасада</h3></div>
+                <div id="paintingNormProfiles"></div>
+            </section>
+            <section class="painting-norms-section">
+                <div class="painting-norms-section-title">
+                    <h3>Операции</h3>
+                    <button class="reset-btn" id="addPaintingOperation">Добавить операцию</button>
+                </div>
+                <div id="paintingNormOperations"></div>
+            </section>
+            <section class="painting-norms-section">
+                <h3>Нормы времени</h3>
+                <p class="order-action-name">Расчёт: фиксированные минуты + минуты на м² × выбранная база площади: общая, тыльная сторона, лицо и торцы или полировка. Календарь округляет результат вверх до 5 минут.</p>
+                <div id="paintingNormMatrix" class="painting-norm-matrix-wrap"></div>
+            </section>
+            <div id="paintingNormValidation" class="painting-norm-validation"></div>
+        </div>
+        <div class="painting-norms-footer">
+            <button class="reset-btn" id="activateHourlyPainting">Включить часовое планирование</button>
+        </div>
+    </div>
+</div>
+
+<div id="sandingActionsModal" class="modal hidden">
+    <div class="modal-content">
+        <h2>Действия шлифовки</h2>
+        <p id="sandingActionName" class="order-action-name"></p>
+        <div class="form-row">
+            <label for="sandingWorkerSelect">Ответственный шлифовщик</label>
+            <select id="sandingWorkerSelect"></select>
+            <button class="reset-btn" id="saveSandingWorker">Сменить шлифовщика</button>
+        </div>
+        <div class="modal-actions">
+            <button class="reset-btn" id="openSandingDays">Длительности операций</button>
+            <button class="reset-btn" id="closeSandingActions">Закрыть</button>
+        </div>
+    </div>
+</div>
+
+<div id="sandingStaffModal" class="modal hidden">
+    <div class="modal-content">
+        <h2>Доступные шлифовщики</h2>
+        <p class="order-action-name">Отметьте сотрудников, доступных для планирования. Количество отмеченных используется в расчёте очереди.</p>
+        <div id="sandingStaffList" class="sanding-staff-list"></div>
+        <div class="modal-actions">
+            <button class="reset-btn" id="closeSandingStaff">Отмена</button>
+            <button class="reset-btn" id="saveSandingStaff">Сохранить</button>
+        </div>
+    </div>
+</div>
+
+
+<div id="orderActionsModal" class="modal hidden">
+
+    <div class="modal-content">
+
+        <h2>Команды заказа</h2>
+
+        <p id="orderActionName" class="order-action-name"></p>
+
+        <div class="form-row">
+            <label for="moveOrderDate">Перенести на дату</label>
+            <input id="moveOrderDate" type="date">
+            <button class="reset-btn" id="moveOrderBtn">Изменить дату</button>
+            <button class="reset-btn hidden" id="clearManualDateBtn">Сбросить приоритет</button>
+        </div>
+
+        <div class="form-row" id="assignmentField">
+            <label for="assignConstructor">Назначить конструктора</label>
+            <select id="assignConstructor"></select>
+            <button class="reset-btn" id="assignConstructorBtn">Назначить конструктора</button>
+        </div>
+
+        <div class="form-row" id="durationField">
+            <label id="editDurationLabel">Дни</label>
+            <div class="duration-control">
+                <button type="button" id="editDurationMinus">−</button>
+                <strong id="editDurationValue"></strong><span>дн.</span>
+                <button type="button" id="editDurationPlus">+</button>
+            </div>
+            <button class="reset-btn" id="saveDurationBtn">Сохранить длительность</button>
+        </div>
+
+        <div class="modal-actions">
+            <button class="reset-btn" id="closeOrderActions">Закрыть</button>
+        </div>
+
+    </div>
+
+</div>
+
+<div id="appMessageModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="appMessageTitle">
+    <div class="modal-content app-message-content">
+        <div class="app-message-icon" aria-hidden="true">!</div>
+        <h2 id="appMessageTitle" class="app-message-title"></h2>
+        <p id="appMessageDetails" class="app-message-details"></p>
+        <p id="appMessageTechnical" class="app-message-technical hidden"></p>
+        <div class="modal-actions">
+            <button class="reset-btn" id="closeAppMessage">Понятно</button>
+            <button class="reset-btn hidden" id="refreshAppMessage">Обновить приложение</button>
+        </div>
+    </div>
+</div>
+
+<div id="pauseCommentModal" class="modal hidden">
+    <div class="modal-content">
+        <h2 id="pauseCommentTitle">Причина паузы</h2>
+        <p id="pauseOrderName" class="order-action-name"></p>
+        <div class="form-row">
+            <label id="pauseCommentLabel" for="pauseComment">Комментарий</label>
+            <textarea id="pauseComment" rows="4" placeholder="Что требуется для продолжения работы?"></textarea>
+        </div>
+        <div class="modal-actions">
+            <button class="reset-btn" id="cancelPauseComment">Отмена</button>
+            <button class="reset-btn" id="savePauseComment">Поставить на паузу</button>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+<div id="orderFilesModal" class="modal hidden">
+    <div class="modal-content files-modal-content">
+        <h2>Файлы заказа</h2>
+        <p id="orderFilesName" class="order-action-name"></p>
+        <div class="order-files-responsibles" aria-label="Ответственные за изделие">
+            <span>Менеджер: <strong id="orderFilesManager">—</strong></span>
+            <span>Конструктор: <strong id="orderFilesConstructor">—</strong></span>
+        </div>
+        <div class="proforma-approval-row">
+            <p id="orderFilesProformaApproval" class="proforma-approval-date hidden"></p>
+            <button type="button" class="reset-btn proforma-edit-btn" id="editOrderFilesProformaApproval">Изменить</button>
+        </div>
+        <div id="orderFilesProformaApprovalEditor" class="proforma-approval-editor hidden">
+            <label for="orderFilesProformaApprovalInput">Проформа согласована</label>
+            <input id="orderFilesProformaApprovalInput" type="date">
+            <button type="button" class="reset-btn" id="saveOrderFilesProformaApproval">Сохранить</button>
+            <button type="button" class="reset-btn" id="cancelOrderFilesProformaApproval">Отмена</button>
+        </div>
+        <fieldset class="deadline-settings-field" id="orderDeadlineSettingsField">
+            <legend>Срок изготовления и дедлайн</legend>
+            <input id="orderDeadlineMode" type="hidden" value="От согласования проформы">
+            <div class="deadline-mode-switch" role="group" aria-label="Способ определения дедлайна">
+                <span class="deadline-mode-label">Дедлайн по</span>
+                <div class="toggle-group deadline-toggle-group">
+                    <button type="button" class="toggle-btn" id="orderDeadlineByDays" data-deadline-mode="От согласования проформы">Календарным дням</button>
+                    <button type="button" class="toggle-btn" id="orderDeadlineByDate" data-deadline-mode="Конкретная дата">Дате</button>
+                </div>
+            </div>
+            <div class="deadline-settings-grid">
+                <div class="form-row" id="orderManufacturingDaysField">
+                    <label for="orderManufacturingDays">Срок изготовления, календарных дней</label>
+                    <input id="orderManufacturingDays" type="number" min="1" max="3650" step="1">
+                </div>
+                <div class="form-row hidden" id="orderManualDeadlineField">
+                    <label for="orderManualDeadline">Дата дедлайна</label>
+                    <input id="orderManualDeadline" type="date">
+                </div>
+            </div>
+            <div class="deadline-settings-footer">
+                <span id="orderCalculatedDeadline">Дедлайн: —</span>
+                <button type="button" class="reset-btn" id="saveOrderDeadlineSettings">Сохранить дедлайн</button>
+            </div>
+        </fieldset>
+        <fieldset id="facadeMaterialField" class="facade-material-field">
+            <legend>Материал фасада <span aria-hidden="true">*</span></legend>
+            <div class="facade-material-options">
+                <label class="mdf-facade-toggle" for="orderHasLdspFacade"><input id="orderHasLdspFacade" type="checkbox"><span>Фасад ЛДСП</span></label>
+                <label class="mdf-facade-toggle" for="orderHasMdfFacade"><input id="orderHasMdfFacade" type="checkbox"><span>Фасад МДФ</span></label>
+                <label class="mdf-facade-toggle" for="orderHasVeneerFacade"><input id="orderHasVeneerFacade" type="checkbox"><span>Фасад Шпон</span></label>
+                <label class="mdf-facade-toggle no-facade-toggle" for="orderHasNoFacade"><input id="orderHasNoFacade" type="checkbox"><span>Без фасада</span></label>
+            </div>
+            <p id="facadeMaterialError" class="facade-material-error hidden">Укажите материал фасада или выберите «Без фасада».</p>
+        </fieldset>
+        <fieldset id="corpusTypeField" class="facade-material-field">
+            <legend>Типы корпуса</legend>
+            <div class="facade-material-options">
+                <label class="mdf-facade-toggle" for="orderHasCorpusLdsp"><input id="orderHasCorpusLdsp" type="checkbox"><span>Корпус ЛДСП</span></label>
+                <label class="mdf-facade-toggle" for="orderHasCorpusMdf"><input id="orderHasCorpusMdf" type="checkbox"><span>Корпус МДФ</span></label>
+                <label class="mdf-facade-toggle" for="orderHasPaintedLdsp"><input id="orderHasPaintedLdsp" type="checkbox"><span>Крашеный ЛДСП</span></label>
+            </div>
+            <p class="facade-material-error">После запуска можно только добавить новую корпусную ветку.</p>
+        </fieldset>
+        <fieldset id="materialAreasField" class="material-areas-field">
+            <legend>Площади материалов, м²</legend>
+            <div class="material-areas-grid">
+                <label for="orderLdspArea">ЛДСП, м²<input id="orderLdspArea" type="number" min="0" step="0.01" inputmode="decimal"></label>
+                <label for="orderMdfArea">МДФ, м²<input id="orderMdfArea" type="number" min="0" step="0.01" inputmode="decimal"></label>
+                <label for="orderLhdfArea">ЛХДФ, м²<input id="orderLhdfArea" type="number" min="0" step="0.01" inputmode="decimal"></label>
+                <label for="orderVeneerArea">Шпон, м²<input id="orderVeneerArea" type="number" min="0" step="0.01" inputmode="decimal"></label>
+            </div>
+            <button type="button" class="reset-btn" id="saveMaterialAreas">Сохранить площади</button>
+        </fieldset>
+        <div class="order-file-tabs" role="tablist" aria-label="Разделы файлов заказа">
+            <button type="button" class="order-file-tab active" data-file-section="ТЗ">ТЗ</button>
+            <button type="button" class="order-file-tab" data-file-section="Замер">Замер</button>
+            <button type="button" class="order-file-tab" data-file-section="Проформа">Проформа</button>
+            <button type="button" class="order-file-tab" data-file-section="КД">КД</button>
+        </div>
+        <button type="button" class="reset-btn hidden" id="downloadMeasurementsArchive">⇩ Скачать всё (ZIP)</button>
+        <div id="orderFilesBrowser" class="order-files-browser">
+            <div id="orderFilesList" class="order-files-list"></div>
+            <aside id="orderFilesPreview" class="order-files-preview hidden" aria-live="polite"></aside>
+        </div>
+        <div class="form-row">
+            <label id="orderFileUploadLabel" for="orderFileInput">Добавить файл в ТЗ</label>
+            <input id="orderFileInput" type="file" multiple>
+            <div id="selectedOrderFiles" class="selected-order-files" aria-live="polite"></div>
+            <button class="reset-btn" id="uploadOrderFileBtn">Загрузить файлы</button>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="reset-btn" id="closeOrderFiles">Закрыть</button>
+        </div>
+    </div>
+</div>
+
+<div id="filePreviewModal" class="modal hidden">
+    <div class="modal-content file-preview-modal-content">
+        <h2 id="filePreviewTitle">Просмотр файла</h2>
+        <div id="filePreviewContent" class="file-preview-content"></div>
+        <div class="modal-actions">
+            <button class="reset-btn" id="closeFilePreview">Закрыть</button>
+        </div>
+    </div>
+</div>
+
+<!-- Окно добавления заказа -->
+
+
+<div 
+    id="addOrderModal"
+    class="modal hidden">
+
+
+    <div class="modal-content">
+
+
+        <h2>
+            ➕ Новый заказ
+        </h2>
+
+
+
+        <div class="form-row">
+
+
+            <label>
+                Договор
+            </label>
+
+
+            <input id="orderContract" list="orderContractList" autocomplete="off">
+            <datalist id="orderContractList"></datalist>
+
+
+        </div>
+
+
+
+
+        <div class="form-row">
+
+
+            <label>
+                Клиент
+            </label>
+
+
+            <input
+                id="orderClient"
+                list="orderClientList"
+                autocomplete="off">
+
+            <datalist id="orderClientList"></datalist>
+
+
+        </div>
+
+
+
+
+        <div class="form-row">
+
+
+            <label>
+                Изделие
+            </label>
+
+
+            <input id="orderProduct">
+
+
+        </div>
+
+
+
+
+        <div class="form-row">
+
+
+            <label>
+                Менеджер
+            </label>
+
+
+            <select id="orderManager"></select>
+
+
+        </div>
+
+
+
+
+        <div class="modal-actions">
+
+
+            <button
+                class="reset-btn"
+                id="cancelAddOrder">
+
+
+                Отмена
+
+
+            </button>
+
+
+
+            <button
+                class="reset-btn"
+                id="saveAddOrder">
+
+
+                Добавить
+
+
+            </button>
+
+
+        </div>
+
+
+
+    </div>
+
+
+</div>

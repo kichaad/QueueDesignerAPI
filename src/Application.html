@@ -1,0 +1,24 @@
+<script>
+
+class Application {
+
+    static start() {
+
+        QueueView.init();
+        const modal = document.getElementById("startSectionModal");
+        document.querySelectorAll("[data-start-role]").forEach(button => {
+            button.onclick = () => {
+                modal.classList.add("hidden");
+                // По умолчанию роль уже «constructor». В этом случае setRole
+                // раньше считал, что переключения не было, и не загружал
+                // очередь до ручного нажатия «Обновить».
+                const request = QueueController.setRole(button.dataset.startRole) || QueueController.load();
+                request.catch(error => console.error(error));
+            };
+        });
+
+    }
+
+}
+
+</script>

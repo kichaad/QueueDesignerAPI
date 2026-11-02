@@ -1,0 +1,433 @@
+<script>
+
+class ApiClient {
+
+
+    static getOrders(section, success, error) {
+
+
+        google.script.run
+
+            .withSuccessHandler(success)
+
+            .withFailureHandler(error)
+
+            .getOrders(section, window.APP_VERSION);
+
+
+    }
+
+
+
+
+
+    static changeField(
+        key,
+        fieldName,
+        value
+    ) {
+
+
+        return this.runQueueAction("changeField", key, fieldName, value);
+
+
+    }
+
+    static addOrder(order) {
+        return this.runQueueAction("addOrder", order);
+    }
+
+    static addClaim(data) {
+        return this.runQueueAction("addClaim", data);
+    }
+
+    static moveOrderToDate(key, targetDate) {
+        return this.runQueueAction("moveOrderToDate", key, targetDate);
+    }
+
+    static clearManualOrderDate(key) {
+        return this.runQueueAction("clearManualOrderDate", key);
+    }
+
+    static assignOrderConstructor(key, constructor) {
+        return this.runQueueAction("assignOrderConstructor", key, constructor);
+    }
+
+    static changeWorkStatus(key, action, comment) {
+        return this.runQueueAction("changeWorkStatus", key, action, comment);
+    }
+
+    static changeConstructorTaskDays(key, taskType, days) {
+        return this.runQueueAction("changeConstructorTaskDays", key, taskType, days);
+    }
+
+    static changeProductionStatus(key, action) {
+        return this.runQueueAction("changeProductionStatus", key, action);
+    }
+
+    static startPaintingBranch(key, branch) {
+        return this.runQueueAction("startPaintingBranch", key, branch);
+    }
+
+    static sendPaintingBranchToPackaging(key, branch) {
+        return this.runQueueAction("sendPaintingBranchToPackaging", key, branch);
+    }
+
+    static launchManufacturing(key) {
+        return this.runQueueAction("launchManufacturing", key);
+    }
+
+    static changeManufacturingStatus(key, branch, action, comment) {
+        return this.runQueueAction("changeManufacturingStatus", key, branch, action, comment);
+    }
+
+    static sendSgpToInstallation(key, branch) {
+        return this.runQueueAction("sendSgpToInstallation", key, branch);
+    }
+
+    static saveInstallationComment(key, branch, comment) {
+        return this.runQueueAction("saveInstallationComment", key, branch, comment);
+    }
+
+    static saveClaimComment(key, comment) {
+        return this.runQueueAction("saveClaimComment", key, comment);
+    }
+
+    static changeManufacturingStage(key, branch, stage) {
+        return this.runQueueAction("changeManufacturingStage", key, branch, stage);
+    }
+
+    static moveOrderToOverallStage(key, stage) {
+        return this.runQueueAction("moveOrderToOverallStage", key, stage);
+    }
+
+    static sendOrderToClaims(key, branch, comment) {
+        return this.runQueueAction("sendOrderToClaims", key, branch, comment);
+    }
+
+    static completeClaim(key) {
+        return this.runQueueAction("completeClaim", key);
+    }
+
+    static restoreCompletedCorpusInstallation(key) {
+        return this.runQueueAction("restoreCompletedCorpusInstallation", key);
+    }
+
+    static setMdfFacade(key, enabled) {
+        return this.runQueueAction("setMdfFacade", key, enabled);
+    }
+
+    static setVeneerFacade(key, enabled) {
+        return this.runQueueAction("setVeneerFacade", key, enabled);
+    }
+
+    static setFacadeMaterials(key, selection) {
+        return this.runQueueAction("setFacadeMaterials", key, selection);
+    }
+
+    static setCorpusTypes(key, selection) {
+        return this.runQueueAction("setCorpusTypes", key, selection);
+    }
+
+    static setMaterialAreas(key, areas) {
+        return this.runQueueAction("setMaterialAreas", key, areas);
+    }
+
+    static saveProductionDays(key, days) {
+        return this.runQueueAction("saveProductionDays", key, days);
+    }
+
+    static getPaintingNorms() {
+        return this.run("getPaintingNorms");
+    }
+
+    static savePaintingNorms(payload) {
+        return this.run("savePaintingNorms", payload);
+    }
+
+    static activateHourlyPaintingPlanning() {
+        return this.run("activateHourlyPaintingPlanning");
+    }
+
+    static changeFacadeType(key, facadeType) {
+        return this.run("changeFacadeType", key, facadeType);
+    }
+
+    static setProformaApprovedDate(key, value) {
+        return this.runQueueAction("setProformaApprovedDate", key, value);
+    }
+
+    static setOrderDeadlineSettings(key, mode, manufacturingDays, manualDate) {
+        return this.runQueueAction("setOrderDeadlineSettings", key, mode, manufacturingDays, manualDate);
+    }
+
+    static changeSandingStatus(key, taskType, action, comment, branch) {
+        return this.runQueueAction("changeSandingStatus", key, taskType, action, comment, branch);
+    }
+
+    static changeSandingWorker(key, worker) {
+        return this.runQueueAction("changeSandingWorker", key, worker);
+    }
+
+    static setAvailableSandingWorkers(workers) {
+        return this.runQueueAction("setAvailableSandingWorkers", workers);
+    }
+
+    static changePaintingStatus(key, taskType, action, comment, branch) {
+        return this.runQueueAction("changePaintingStatus", key, taskType, action, comment, branch);
+    }
+
+    static getOrderFiles(key) {
+        return this.run("getOrderFiles", key);
+    }
+
+    static uploadOrderFile(key, section, file) {
+        return this.run("uploadOrderFile", key, section, file);
+    }
+
+    static downloadOrderFile(key, section, fileId) {
+        return this.run("downloadOrderFile", key, section, fileId);
+    }
+
+    static downloadMeasurementArchive(key) {
+        return this.run("downloadMeasurementArchive", key);
+    }
+
+    static getOrderFileThumbnail(key, section, fileId) {
+        return this.run("getOrderFileThumbnail", key, section, fileId);
+    }
+
+    static deleteOrderFile(key, section, fileId) {
+        return this.run("deleteOrderFile", key, section, fileId);
+    }
+
+    static getMailCloudConnectionStatus() {
+        return this.run("getMailCloudConnectionStatus");
+    }
+
+    static changeOrderDuration(key, duration) {
+        return this.runQueueAction("changeOrderDuration", key, duration);
+    }
+
+    static advanceManagerStage(key, stage) {
+        return this.runQueueAction("advanceManagerStage", key, stage);
+    }
+
+    static reviewByTechnologist(key, action, constructor, proformaDays, kdDays) {
+        return this.runQueueAction("reviewByTechnologist", key, action, constructor, proformaDays, kdDays);
+    }
+
+    static getSupplyImportCandidates(fileName) {
+        return this.run("getSupplyImportCandidates", fileName);
+    }
+
+    static importSupplySpecification(file, orderKey) {
+        return this.run("importSupplySpecification", file, orderKey);
+    }
+
+    static previewSupplySpecification(file, orderKey, selections) {
+        return this.run("previewSupplySpecification", file, orderKey, selections);
+    }
+
+    static analyzeSupplySpecification(file, orderKey) {
+        return this.run("analyzeSupplySpecification", file, orderKey);
+    }
+
+    static saveSupplySpecification(materials, fileName, orderKey, importInfo) {
+        return this.run("saveSupplySpecification", materials, fileName, orderKey, importInfo);
+    }
+
+    static changePurchaseStatus(rowId, direction) {
+        return this.run("changePurchaseStatus", rowId, direction);
+    }
+
+    static setPurchaseStatus(rowId, status) {
+        return this.run("setPurchaseStatus", rowId, status);
+    }
+
+    static assignSupplySupplier(rowId, supplier) {
+        return this.run("assignSupplySupplier", rowId, supplier);
+    }
+
+    static deleteSupplyMaterial(rowId) {
+        return this.run("deleteSupplyMaterial", rowId);
+    }
+
+    static getSupplyOrderDirectory() {
+        return this.run("getSupplyOrderDirectory");
+    }
+
+    static clearSupplyOrderMaterials(orderKey) {
+        return this.run("clearSupplyOrderMaterials", orderKey);
+    }
+
+    static getSupplierOrderCandidates(supplier, productKeys) {
+        return this.run("getSupplierOrderCandidates", supplier, productKeys);
+    }
+
+    static createSupplierOrder(supplier, rowIds) {
+        return this.run("createSupplierOrder", supplier, rowIds);
+    }
+
+    static getSupplierOrderDetails(orderId) {
+        return this.run("getSupplierOrderDetails", orderId);
+    }
+
+    static exportSupplierOrderExcel(orderId) {
+        return this.run("exportSupplierOrderExcel", orderId);
+    }
+
+    static exportAllOrdersExcel(rows, filters) {
+        return this.run("exportAllOrdersExcel", rows, filters);
+    }
+
+    static exportProductionExcel(rows, filters, layout) {
+        return this.run("exportProductionExcel", rows, filters, layout);
+    }
+
+    static createBasisSpecification(file) {
+        return this.run("createBasisSpecification", file);
+    }
+
+    static exportListExcel(exportType, rows, filters) {
+        return this.run("exportListExcel", exportType, rows, filters);
+    }
+
+    static getSupplierOrderAddCandidates(orderId) {
+        return this.run("getSupplierOrderAddCandidates", orderId);
+    }
+
+    static addSupplierOrderMaterials(orderId, rowIds) {
+        return this.run("addSupplierOrderMaterials", orderId, rowIds);
+    }
+
+    static updateSupplierOrderLine(orderId, lineId, quantity, unit) {
+        return this.run("updateSupplierOrderLine", orderId, lineId, quantity, unit);
+    }
+
+    static removeSupplierOrderLines(orderId, lineIds) {
+        return this.run("removeSupplierOrderLines", orderId, lineIds);
+    }
+
+    static splitSupplierOrderLines(orderId, lineIds) {
+        return this.run("splitSupplierOrderLines", orderId, lineIds);
+    }
+
+    static setSupplierOrderStatus(orderId, status) {
+        return this.run("setSupplierOrderStatus", orderId, status);
+    }
+
+    static saveSupplierOrderInvoiceNumbers(orderId, invoiceNumbers) {
+        return this.run("saveSupplierOrderInvoiceNumbers", orderId, invoiceNumbers);
+    }
+
+    static attachSupplierOrderInvoice(orderId, payload) {
+        return this.run("attachSupplierOrderInvoice", orderId, payload);
+    }
+
+    static createEquipment(data) {
+        return this.run("createEquipment", data);
+    }
+
+    static updateEquipment(id, data) {
+        return this.run("updateEquipment", id, data);
+    }
+
+    static setEquipmentStatus(id, status) {
+        return this.run("setEquipmentStatus", id, status);
+    }
+
+    static setEquipmentSupplier(id, supplier) {
+        return this.run("setEquipmentSupplier", id, supplier);
+    }
+
+    static getEquipmentProposalFiles(id) {
+        return this.run("getEquipmentProposalFiles", id);
+    }
+
+    static uploadEquipmentProposalFile(id, file) {
+        return this.run("uploadEquipmentProposalFile", id, file);
+    }
+
+    static deleteEquipmentProposalFile(id, fileId) {
+        return this.run("deleteEquipmentProposalFile", id, fileId);
+    }
+
+    static previewEquipmentInvoice(file) { return this.run("previewEquipmentInvoice", file); }
+    static saveEquipmentInvoice(payload) { return this.run("saveEquipmentInvoice", payload); }
+    static getEquipmentInvoiceDetail(id) { return this.run("getEquipmentInvoiceDetail", id); }
+    static getEquipmentInvoices(id) { return this.run("getEquipmentInvoices", id); }
+    static markEquipmentInvoicePaid(id, paidAt) { return this.run("markEquipmentInvoicePaid", id, paidAt); }
+
+    static createTabletop(data) { return this.run("createTabletop", data); }
+    static updateTabletop(id, data) { return this.run("updateTabletop", id, data); }
+    static setTabletopStatus(id, status) { return this.run("setTabletopStatus", id, status); }
+    static setTabletopSupplier(id, supplier) { return this.run("setTabletopSupplier", id, supplier); }
+    static getTabletopProposalFiles(id) { return this.run("getTabletopProposalFiles", id); }
+    static uploadTabletopProposalFile(id, file) { return this.run("uploadTabletopProposalFile", id, file); }
+    static deleteTabletopProposalFile(id, fileId) { return this.run("deleteTabletopProposalFile", id, fileId); }
+
+    static getSupplySuppliers() {
+        return this.run("getSupplySuppliers");
+    }
+
+    static saveSupplySupplier(supplier) {
+        return this.run("saveSupplySupplier", supplier);
+    }
+
+    static deleteSupplySupplier(name) {
+        return this.run("deleteSupplySupplier", name);
+    }
+
+    static getConsumableCandidates() {
+        return this.run("getConsumableCandidates");
+    }
+
+    static saveConsumables(names) {
+      return this.run("saveConsumables", names);
+    }
+    static saveMaterialRoutes(routes) { return this.run("saveMaterialRoutes", routes); }
+    static importExpoCatalog() { return this.run("importExpoCatalog"); }
+
+    static searchSupplyArticles(supplier) {
+        return this.run("searchSupplyArticles", supplier || "");
+    }
+
+    static previewPlateMaterials(files, orderKey) {
+        return this.run("previewPlateMaterials", files, orderKey);
+    }
+
+    static getPlateImportOrders(folderName) {
+        return this.run("getPlateImportOrders", folderName);
+    }
+
+    static savePlateMaterials(materials, sourceName, orderKey) {
+        return this.run("savePlateMaterials", materials, sourceName, orderKey);
+    }
+
+    static setPlateOrderSheets(rowId, value) {
+        return this.run("setPlateOrderSheets", rowId, value);
+    }
+
+    static setPlatePurchaseStatus(rowId, status) {
+        return this.run("setPlatePurchaseStatus", rowId, status);
+    }
+
+    static runQueueAction(actionName, ...args) {
+        if (Store.isAppVersionOutdated()) {
+            return Promise.reject(new Error("APP_VERSION_MISMATCH|client=" + String(window.APP_VERSION || "unknown") + "|server=unknown"));
+        }
+        return this.run("runQueueAction", actionName, args, Store.getSection(), window.APP_VERSION);
+    }
+
+    static run(method, ...args) {
+        return new Promise((resolve, reject) => {
+            google.script.run
+                .withSuccessHandler(resolve)
+                .withFailureHandler(reject)[method](...args);
+        });
+    }
+
+}
+
+</script>

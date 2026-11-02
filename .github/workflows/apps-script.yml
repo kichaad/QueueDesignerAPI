@@ -1,0 +1,50 @@
+name: Apps Script
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Verify access or publish selected code
+        type: choice
+        options: [verify, publish]
+        default: verify
+permissions:
+  contents: read
+concurrency:
+  group: order-queue-apps-script
+  cancel-in-progress: false
+jobs:
+  apps-script:
+    runs-on: ubuntu-latest
+    environment: apps-script
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: node scripts/check-source.cjs
+      - name: Verify access and optionally publish
+        shell: bash
+        env:
+          CLASP_AUTH_JSON: ${{ secrets.CLASP_AUTH_JSON }}
+          DEPLOYMENT_ID: ${{ vars.GAS_DEPLOYMENT_ID }}
+          OPERATION: ${{ inputs.operation }}
+        run: |
+          set -euo pipefail
+          test -n "$CLASP_AUTH_JSON" || { echo 'Missing CLASP_AUTH_JSON secret'; exit 1; }
+          umask 077
+          auth_file="$(mktemp "$RUNNER_TEMP/clasp-auth.XXXXXX")"
+          version_file="$(mktemp "$RUNNER_TEMP/clasp-version.XXXXXX")"
+          trap 'rm -f "$auth_file" "$version_file"' EXIT
+          printf '%s' "$CLASP_AUTH_JSON" > "$auth_file"
+          unset CLASP_AUTH_JSON
+          clasp_bin=./node_modules/.bin/clasp
+          "$clasp_bin" -A "$auth_file" list-deployments
+          if [ "$OPERATION" = publish ]; then
+            test -n "$DEPLOYMENT_ID" || { echo 'Missing GAS_DEPLOYMENT_ID variable'; exit 1; }
+            "$clasp_bin" -A "$auth_file" push --force
+            "$clasp_bin" -A "$auth_file" --json create-version "GitHub $GITHUB_SHA" > "$version_file"
+            version="$(node -e 'const v=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).versionNumber; if(!Number.isInteger(v)||v<1)process.exit(1); process.stdout.write(String(v));' "$version_file")"
+            "$clasp_bin" -A "$auth_file" update-deployment "$DEPLOYMENT_ID" --versionNumber "$version" --description "GitHub $GITHUB_SHA"
+          fi

@@ -1,0 +1,384 @@
+<script>
+class SupplierOrdersView {
+    static initialized = false;
+    static currentDetails = null;
+    static aggregateDetails = true;
+    static addCandidates = null;
+    static addProducts = new Set();
+    static addQuery = "";
+    static selectedLineIds = new Set();
+    static invoiceOrderId = "";
+
+    static toggle(visible) {
+        const toolbar = document.getElementById("supplierOrdersToolbar");
+        const statistics = document.getElementById("statisticsPanel");
+        const addOrder = document.getElementById("addOrderBtn");
+        document.body.classList.toggle("supplier-orders-section-active", visible);
+        if (toolbar) toolbar.classList.toggle("hidden", !visible);
+        if (statistics) statistics.classList.toggle("hidden", visible);
+        if (addOrder) addOrder.classList.toggle("hidden", visible);
+        if (visible) this.bindControls();
+    }
+
+    static bindControls() {
+        if (this.initialized) return;
+        this.initialized = true;
+        document.getElementById("supplierOrdersSupplierFilter").onchange = event => {
+            QueueController.setSelectedUser(event.target.value || "");
+        };
+        document.getElementById("supplierOrdersStatusFilter").onchange = () => QueueView.render();
+        document.getElementById("createSupplierOrderBtn").onclick = () => SupplyView.openSupplierOrders();
+        document.getElementById("cancelSupplierOrderInvoiceQuick").onclick = () => this.closeInvoiceAttach();
+        document.getElementById("saveSupplierOrderInvoiceQuick").onclick = () => this.attachInvoice();
+        document.getElementById("closeSupplierOrderDetailsModal").onclick = () => {
+            document.getElementById("supplierOrderDetailsModal").classList.add("hidden");
+            this.currentDetails = null;
+            this.addCandidates = null;
+            this.selectedLineIds = new Set();
+        };
+    }
+
+    static initFilters(items) {
+        const suppliers = [...new Set((items || []).map(item => String(item.supplier || "").trim()).filter(Boolean))]
+            .sort((left, right) => left.localeCompare(right, "ru"));
+        const selectedSupplier = Store.getSelectedUser();
+        if (selectedSupplier && !suppliers.includes(selectedSupplier)) {
+            QueueController.setSelectedUser("");
+            return;
+        }
+
+        this.renderSupplierButtons(suppliers, selectedSupplier);
+        this.syncSelect("supplierOrdersSupplierFilter", suppliers, "Все поставщики", selectedSupplier);
+        this.syncSelect("supplierOrdersStatusFilter", Store.state.dictionaries?.supplierOrderStatuses || [], "Все статусы");
+    }
+
+    static renderSupplierButtons(suppliers, selectedSupplier) {
+        const title = document.getElementById("filterTitle");
+        const buttons = document.getElementById("userButtons");
+        if (title) title.textContent = "📦 Поставщики";
+        if (!buttons) return;
+
+        const renderButton = (supplier, label) => `<button class="toggle-btn${supplier === selectedSupplier ? " active" : ""}" data-supplier-order-user="${this.escape(supplier)}">${this.escape(label)}</button>`;
+        buttons.innerHTML = renderButton("", "Все") + suppliers.map(supplier => renderButton(supplier, supplier)).join("");
+        buttons.querySelectorAll("[data-supplier-order-user]").forEach(button => {
+            button.onclick = () => QueueController.setSelectedUser(button.dataset.supplierOrderUser || "");
+        });
+    }
+
+    static syncSelect(id, values, placeholder, selectedValue) {
+        const select = document.getElementById(id);
+        if (!select) return;
+        const selected = selectedValue === undefined ? select.value : selectedValue;
+        select.innerHTML = `<option value="">${placeholder}</option>${values.map(value => `<option value="${this.escape(value)}">${this.escape(value)}</option>`).join("")}`;
+        select.value = values.includes(selected) ? selected : "";
+    }
+
+    static getFilteredItems(items) {
+        const supplier = Store.getSelectedUser();
+        const status = document.getElementById("supplierOrdersStatusFilter")?.value || "";
+        return (items || []).filter(item => (!supplier || item.supplier === supplier) && (!status || item.status === status));
+    }
+
+    static render(items) {
+        this.toggle(true);
+        this.initFilters(items);
+        const rows = this.getFilteredItems(items);
+        const total = document.getElementById("totalOrders");
+        if (total) total.textContent = `Заказов: ${rows.length}`;
+        const container = document.getElementById("ordersContainer");
+        if (!container) return;
+        if (!rows.length) {
+            container.innerHTML = `<div class="block"><div class="supply-empty">Заказов поставщикам по выбранному фильтру нет.</div></div>`;
+            return;
+        }
+        const statuses = Store.state.dictionaries?.supplierOrderStatuses || [];
+        container.innerHTML = `<div class="block"><div class="block-header"><div class="block-name">📋 Заказы поставщикам <span class="badge">${rows.length}</span></div></div>
+            <div class="table-wrap"><table class="supplier-orders-table"><thead><tr><th>Номер</th><th>Создан</th><th>Поставщик</th><th>Статус</th><th>Номер счёта</th><th>Изделия</th><th>Позиций</th><th>Сумма</th><th>Действия</th></tr></thead><tbody>${rows.map(order => `<tr>
+                <td>${this.escape(order.number)}</td><td>${this.escape(QueueView.formatDeadline(order.createdAt))}</td><td>${this.escape(order.supplier)}</td>
+                <td><select data-supplier-order-status="${this.escape(order.id)}">${statuses.map(status => `<option value="${this.escape(status)}"${status === order.status ? " selected" : ""}>${this.escape(status)}</option>`).join("")}</select></td>
+                <td><textarea class="supplier-order-invoice-numbers" rows="2" data-supplier-order-invoice-numbers="${this.escape(order.id)}" aria-label="Номер счёта для заказа ${this.escape(order.number)}">${this.escape(order.invoiceNumbers || "")}</textarea></td>
+                <td class="supplier-order-products-cell">${(order.products || []).length ? `<div class="supplier-order-products-list">${order.products.map(product => `<span>${this.escape(product)}</span>`).join("")}</div>` : "—"}</td>
+                <td>${this.escape(order.lineCount)}</td><td>${this.formatMoney(order.total)}</td><td><button class="reset-btn" data-supplier-order-invoice="${this.escape(order.id)}">Прикрепить счёт</button><button class="reset-btn" data-supplier-order-details="${this.escape(order.id)}">Состав</button></td>
+            </tr>`).join("")}</tbody></table></div></div>`;
+        container.querySelectorAll("[data-supplier-order-status]").forEach(select => {
+            select.onchange = () => QueueController.setSupplierOrderStatus(select.dataset.supplierOrderStatus, select.value)
+                .catch(error => QueueView.showMessage(error));
+        });
+        container.querySelectorAll("[data-supplier-order-invoice-numbers]").forEach(input => {
+            input.onchange = () => {
+                input.disabled = true;
+                QueueController.saveSupplierOrderInvoiceNumbers(input.dataset.supplierOrderInvoiceNumbers, input.value)
+                    .catch(error => QueueView.showMessage(error)).finally(() => { input.disabled = false; });
+            };
+        });
+        container.querySelectorAll("[data-supplier-order-invoice]").forEach(button => {
+            button.onclick = () => this.openInvoiceAttach(button.dataset.supplierOrderInvoice);
+        });
+        container.querySelectorAll("[data-supplier-order-details]").forEach(button => {
+            button.onclick = () => this.openDetails(button.dataset.supplierOrderDetails);
+        });
+    }
+
+    static openDetails(orderId, resetState = true) {
+        QueueController.getSupplierOrderDetails(orderId).then(data => {
+            if (!data || !data.order || !Array.isArray(data.lines)) {
+                throw new Error("Сервер не вернул состав заказа. Обновите очередь и повторите попытку.");
+            }
+            this.currentDetails = data;
+            if (resetState) {
+                this.addCandidates = null;
+                this.addProducts = new Set();
+                this.addQuery = "";
+                this.aggregateDetails = true;
+                this.selectedLineIds = new Set();
+            }
+            this.renderDetails();
+            document.getElementById("supplierOrderDetailsModal").classList.remove("hidden");
+        }).catch(error => QueueView.showMessage(error));
+    }
+
+    static refreshDetails() {
+        const orderId = this.currentDetails?.order?.id;
+        if (orderId) this.openDetails(orderId, false);
+    }
+
+    static get isEditable() {
+        return this.currentDetails?.order?.status === "Сформирован";
+    }
+
+    static renderDetails() {
+        const data = this.currentDetails;
+        if (!data) return;
+        const availableLineIds = new Set((data.detailedLines || []).map(line => line.lineId));
+        this.selectedLineIds = new Set([...this.selectedLineIds].filter(lineId => availableLineIds.has(lineId)));
+        const lines = this.aggregateDetails ? data.lines : (data.detailedLines || []);
+        const editable = this.isEditable;
+        const exportButton = `<button class="reset-btn" id="supplierOrderExportExcel">⇩ Скачать Excel</button>`;
+        const invoiceButton = `<button class="reset-btn" id="supplierOrderAttachInvoice">📎 Прикрепить счёт</button>`;
+        const selectedCount = this.selectedLineIds.size;
+        const batchActions = editable && !this.aggregateDetails ? `<span class="supplier-order-selection-count">Выбрано: ${selectedCount}</span>
+            <button class="reset-btn supplier-order-line-remove" id="supplierOrderRemoveSelected"${selectedCount ? "" : " disabled"}>Удалить выбранные</button>
+            <button class="reset-btn" id="supplierOrderSplitSelected"${selectedCount ? "" : " disabled"}>Вынести в отдельный заказ</button>` : "";
+        const toolbar = editable ? `<div class="supplier-order-details-toolbar">
+            ${exportButton}${invoiceButton}
+            <label><input type="checkbox" id="supplierOrderAggregate"${this.aggregateDetails ? " checked" : ""}> Объединить одинаковые материалы</label>
+            <button class="reset-btn" id="supplierOrderAddMaterials">＋ Добавить материалы</button>
+            ${batchActions}
+        </div>` : `<div class="supplier-order-details-note">${exportButton}${invoiceButton}<span>Состав зафиксирован: после получения счёта редактирование недоступно.</span></div>`;
+        const detailColumn = this.aggregateDetails ? "Изделий" : "Изделие";
+        const actionsColumn = editable ? "<th>Действия</th>" : "";
+        const rows = lines.map(line => {
+            const quantity = this.aggregateDetails ? this.escape(line.quantity) : `<input type="number" min="0.001" step="any" value="${this.escape(line.quantity)}" data-order-line-quantity="${this.escape(line.lineId)}">`;
+            const unit = this.aggregateDetails ? this.escape(line.unit) : `<input type="text" value="${this.escape(line.unit)}" data-order-line-unit="${this.escape(line.lineId)}">`;
+            const detail = this.aggregateDetails ? this.escape(line.sourceCount) : `${this.escape(line.contract)} · ${this.escape(line.client)} · ${this.escape(line.product)}`;
+            const lineIds = this.aggregateDetails ? line.lineIds : [line.lineId];
+            const actions = editable ? `<td class="supplier-order-line-actions">${!this.aggregateDetails ? `<button class="reset-btn" data-order-line-save="${this.escape(line.lineId)}">Сохранить</button>` : ""}<button class="reset-btn supplier-order-line-remove" data-order-line-remove="${this.escape(lineIds.join(","))}">Удалить</button></td>` : "";
+            const selection = editable && !this.aggregateDetails ? `<td><input type="checkbox" data-order-line-select="${this.escape(line.lineId)}"${this.selectedLineIds.has(line.lineId) ? " checked" : ""}></td>` : "";
+            return `<tr>${selection}<td>${this.escape(line.article || "—")}</td><td>${this.escape(line.name)}</td><td>${quantity}</td><td>${unit}</td><td>${this.formatMoney(line.price)}</td><td>${this.formatMoney(line.total)}</td><td>${detail}</td>${actions}</tr>`;
+        }).join("");
+        const selectionHeader = editable && !this.aggregateDetails ? `<th><input type="checkbox" id="supplierOrderSelectAll"${lines.length && selectedCount === lines.length ? " checked" : ""}></th>` : "";
+        document.getElementById("supplierOrderDetailsTitle").textContent = `${data.order.number} · ${data.order.supplier}`;
+        document.getElementById("supplierOrderDetailsContent").innerHTML = `${toolbar}${this.renderAddPanel()}<table><thead><tr>${selectionHeader}<th>Артикул</th><th>Наименование</th><th>Кол-во</th><th>Ед.</th><th>Цена</th><th>Сумма</th><th>${detailColumn}</th>${actionsColumn}</tr></thead><tbody>${rows || "<tr><td colspan=\"9\">В заказе нет позиций.</td></tr>"}</tbody></table>`;
+        this.bindDetailControls();
+    }
+
+    static renderAddPanel() {
+        if (!this.addCandidates) return "";
+        const all = this.addCandidates.candidates || [];
+        const selected = new Set([...this.addProducts]);
+        const query = this.addQuery.toLowerCase();
+        const rows = all.filter(item => selected.has(item.productKey) && (!query || [item.contract, item.client, item.product, item.article, item.name].some(value => String(value || "").toLowerCase().includes(query))));
+        const productChoices = (this.addCandidates.products || []).map(product => `<label class="supplier-order-product"><input type="checkbox" data-order-add-product="${this.escape(product.key)}"${selected.has(product.key) ? " checked" : ""}> ${this.escape(product.contract)} · ${this.escape(product.client)} · ${this.escape(product.product)}</label>`).join("");
+        const selectedCount = all.filter(item => item.selected).length;
+        return `<section class="supplier-order-add-panel"><div class="supplier-order-picker-header"><h3>Добавить материалы</h3><input id="supplierOrderAddSearch" type="search" placeholder="Поиск: договор, клиент, изделие, артикул, материал" value="${this.escape(this.addQuery)}"></div><div class="supplier-order-products">${productChoices}</div><div class="supplier-order-actions"><button class="reset-btn" id="supplierOrderAddAll">Выбрать всё</button><button class="reset-btn" id="supplierOrderAddNone">Снять всё</button><span>Выбрано: ${selectedCount}</span><button class="reset-btn" id="supplierOrderAddConfirm">Добавить выбранные</button></div><div class="supplier-order-candidates">${rows.length ? `<table><thead><tr><th></th><th>Договор</th><th>Клиент</th><th>Изделие</th><th>Артикул</th><th>Наименование</th><th>Кол-во</th><th>Ед.</th></tr></thead><tbody>${rows.map(item => `<tr><td><input type="checkbox" data-order-add-row="${this.escape(item.rowId)}"${item.selected ? " checked" : ""}></td><td>${this.escape(item.contract)}</td><td>${this.escape(item.client)}</td><td>${this.escape(item.product)}</td><td>${this.escape(item.article || "—")}</td><td>${this.escape(item.name)}</td><td>${this.escape(item.quantity)}</td><td>${this.escape(item.unit)}</td></tr>`).join("")}</tbody></table>` : `<div class="supply-empty">Нет новых материалов по выбранному фильтру.</div>`}</div></section>`;
+    }
+
+    static bindDetailControls() {
+        const content = document.getElementById("supplierOrderDetailsContent");
+        const aggregate = document.getElementById("supplierOrderAggregate");
+        if (aggregate) aggregate.onchange = () => { this.aggregateDetails = aggregate.checked; this.renderDetails(); };
+        const exportExcel = document.getElementById("supplierOrderExportExcel");
+        if (exportExcel) exportExcel.onclick = () => this.exportExcel(exportExcel);
+        const attachInvoice = document.getElementById("supplierOrderAttachInvoice");
+        if (attachInvoice) attachInvoice.onclick = () => this.openInvoiceAttach(this.currentDetails.order.id);
+        const add = document.getElementById("supplierOrderAddMaterials");
+        if (add) add.onclick = () => this.loadAddCandidates();
+        const selectAll = document.getElementById("supplierOrderSelectAll");
+        if (selectAll) selectAll.onchange = () => {
+            this.selectedLineIds = selectAll.checked ? new Set((this.currentDetails.detailedLines || []).map(line => line.lineId)) : new Set();
+            this.renderDetails();
+        };
+        content.querySelectorAll("[data-order-line-select]").forEach(input => input.onchange = () => {
+            if (input.checked) this.selectedLineIds.add(input.dataset.orderLineSelect);
+            else this.selectedLineIds.delete(input.dataset.orderLineSelect);
+            this.renderDetails();
+        });
+        const removeSelected = document.getElementById("supplierOrderRemoveSelected");
+        if (removeSelected) removeSelected.onclick = () => this.removeSelectedLines();
+        const splitSelected = document.getElementById("supplierOrderSplitSelected");
+        if (splitSelected) splitSelected.onclick = () => this.splitSelectedLines();
+        content.querySelectorAll("[data-order-line-save]").forEach(button => button.onclick = () => this.saveLine(button.dataset.orderLineSave));
+        content.querySelectorAll("[data-order-line-remove]").forEach(button => button.onclick = () => this.removeLines(button.dataset.orderLineRemove.split(",")));
+        const search = document.getElementById("supplierOrderAddSearch");
+        if (search) search.oninput = () => { this.addQuery = search.value; this.renderDetails(); };
+        content.querySelectorAll("[data-order-add-product]").forEach(input => input.onchange = () => {
+            const key = input.dataset.orderAddProduct;
+            if (input.checked) this.addProducts.add(key); else this.addProducts.delete(key);
+            this.addCandidates.candidates.forEach(item => { if (item.productKey === key) item.selected = input.checked; });
+            this.renderDetails();
+        });
+        content.querySelectorAll("[data-order-add-row]").forEach(input => input.onchange = () => {
+            const item = this.addCandidates.candidates.find(candidate => candidate.rowId === input.dataset.orderAddRow);
+            if (item) item.selected = input.checked;
+            this.renderDetails();
+        });
+        const all = document.getElementById("supplierOrderAddAll");
+        if (all) all.onclick = () => { this.addCandidates.candidates.forEach(item => { if (this.addProducts.has(item.productKey)) item.selected = true; }); this.renderDetails(); };
+        const none = document.getElementById("supplierOrderAddNone");
+        if (none) none.onclick = () => { this.addCandidates.candidates.forEach(item => { if (this.addProducts.has(item.productKey)) item.selected = false; }); this.renderDetails(); };
+        const confirm = document.getElementById("supplierOrderAddConfirm");
+        if (confirm) confirm.onclick = () => this.addSelectedMaterials();
+    }
+
+    static exportExcel(button) {
+        if (!this.currentDetails?.order?.id) return;
+        const originalText = button.textContent;
+        button.disabled = true;
+        button.textContent = "Готовим Excel…";
+        QueueController.exportSupplierOrderExcel(this.currentDetails.order.id).then(file => {
+            if (!file || !file.base64 || !file.filename) throw new Error("Сервер не вернул файл Excel.");
+            const binary = atob(file.base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
+            const url = URL.createObjectURL(new Blob([bytes], { type: file.mimeType || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = file.filename;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 0);
+        }).catch(error => QueueView.showMessage(error)).finally(() => {
+            button.disabled = false;
+            button.textContent = originalText;
+        });
+    }
+
+    static openInvoiceAttach(orderId) {
+        const order = (QueueView.orders || []).find(item => item.id === String(orderId || "")) || this.currentDetails?.order;
+        if (!order) return QueueView.showMessage(new Error("Заказ поставщику не найден."));
+        this.invoiceOrderId = order.id;
+        document.getElementById("supplierOrderInvoiceQuickOrder").textContent = `${order.number} · ${order.supplier}`;
+        document.getElementById("supplierOrderInvoiceQuickNumber").value = "";
+        document.getElementById("supplierOrderInvoiceQuickFile").value = "";
+        document.getElementById("supplierOrderInvoiceQuickModal").classList.remove("hidden");
+    }
+
+    static closeInvoiceAttach() {
+        this.invoiceOrderId = "";
+        document.getElementById("supplierOrderInvoiceQuickModal").classList.add("hidden");
+    }
+
+    static encodeInvoiceFile(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onerror = () => reject(new Error("Не удалось прочитать файл счёта."));
+            reader.onload = () => resolve(String(reader.result || "").split(",").pop());
+            reader.readAsDataURL(file);
+        });
+    }
+
+    static attachInvoice() {
+        const orderId = this.invoiceOrderId;
+        const file = document.getElementById("supplierOrderInvoiceQuickFile").files?.[0];
+        if (!orderId || !file) return QueueView.showMessage(new Error("Выберите PDF-файл счёта."));
+        const button = document.getElementById("saveSupplierOrderInvoiceQuick");
+        const originalText = button.textContent;
+        button.disabled = true;
+        button.textContent = "Прикрепляем…";
+        this.encodeInvoiceFile(file).then(base64 => QueueController.attachSupplierOrderInvoice(orderId, {
+            number: document.getElementById("supplierOrderInvoiceQuickNumber").value,
+            file: { name: file.name, mimeType: file.type || "application/pdf", base64: base64 }
+        })).then(() => {
+            this.closeInvoiceAttach();
+            if (this.currentDetails?.order?.id === orderId) this.refreshDetails();
+        }).catch(error => QueueView.showMessage(error)).finally(() => {
+            button.disabled = false;
+            button.textContent = originalText;
+        });
+    }
+
+    static loadAddCandidates() {
+        QueueController.getSupplierOrderAddCandidates(this.currentDetails.order.id).then(data => {
+            this.addCandidates = Object.assign({}, data, { candidates: (data.candidates || []).map(item => Object.assign({}, item, { selected: true })) });
+            this.addProducts = new Set((data.products || []).map(item => item.key));
+            this.addQuery = "";
+            this.renderDetails();
+        }).catch(error => QueueView.showMessage(error));
+    }
+
+    static addSelectedMaterials() {
+        const rowIds = this.addCandidates.candidates.filter(item => item.selected && this.addProducts.has(item.productKey)).map(item => item.rowId);
+        if (!rowIds.length) return QueueView.showMessage(new Error("Выберите хотя бы одну позицию для добавления."));
+        QueueController.addSupplierOrderMaterials(this.currentDetails.order.id, rowIds).then(() => {
+            this.addCandidates = null;
+            this.addProducts = new Set();
+            this.addQuery = "";
+            this.refreshDetails();
+        }).catch(error => QueueView.showMessage(error));
+    }
+
+    static saveLine(lineId) {
+        const quantity = document.querySelector(`[data-order-line-quantity="${CSS.escape(lineId)}"]`)?.value;
+        const unit = document.querySelector(`[data-order-line-unit="${CSS.escape(lineId)}"]`)?.value;
+        QueueController.updateSupplierOrderLine(this.currentDetails.order.id, lineId, quantity, unit).then(() => this.refreshDetails()).catch(error => QueueView.showMessage(error));
+    }
+
+    static removeLines(lineIds) {
+        const aggregate = lineIds.length > 1;
+        const message = aggregate ? "Удалить этот материал из заказа для всех изделий? Позиции вернутся в очередь со статусом «Новый»." : "Удалить позицию из заказа? Она вернётся в очередь со статусом «Новый».";
+        SupplyView.showSupplyDialog("Удалить из заказа?", message, { confirmText: "Удалить" }).then(confirmed => {
+            if (!confirmed) return;
+            QueueController.removeSupplierOrderLines(this.currentDetails.order.id, lineIds).then(result => {
+                lineIds.forEach(lineId => this.selectedLineIds.delete(lineId));
+                if (result.deleted) document.getElementById("supplierOrderDetailsModal").classList.add("hidden");
+                else this.refreshDetails();
+            }).catch(error => QueueView.showMessage(error));
+        });
+    }
+
+    static removeSelectedLines() {
+        const lineIds = [...this.selectedLineIds];
+        if (!lineIds.length) return;
+        SupplyView.showSupplyDialog("Удалить из заказа?", `Удалить ${lineIds.length} выбранных позиций? Они вернутся в очередь со статусом «Новый».`, { confirmText: "Удалить" }).then(confirmed => {
+            if (!confirmed) return;
+            QueueController.removeSupplierOrderLines(this.currentDetails.order.id, lineIds).then(result => {
+                this.selectedLineIds = new Set();
+                if (result.deleted) document.getElementById("supplierOrderDetailsModal").classList.add("hidden");
+                else this.refreshDetails();
+            }).catch(error => QueueView.showMessage(error));
+        });
+    }
+
+    static splitSelectedLines() {
+        const lineIds = [...this.selectedLineIds];
+        if (!lineIds.length) return;
+        SupplyView.showSupplyDialog("Отдельный заказ", "Вынести выбранные позиции в новый заказ того же поставщика? Выбирать можно строки только одного изделия.", { confirmText: "Вынести" }).then(confirmed => {
+            if (!confirmed) return;
+            QueueController.splitSupplierOrderLines(this.currentDetails.order.id, lineIds).then(result => {
+                this.selectedLineIds = new Set();
+                this.openDetails(result.source.deleted ? result.newOrder.id : this.currentDetails.order.id, false);
+                SupplyView.showSupplyDialog("Отдельный заказ создан", `Создан заказ ${result.newOrder.number} для выбранного изделия.`, { confirmText: "Понятно" });
+            }).catch(error => QueueView.showMessage(error));
+        });
+    }
+
+    static formatMoney(value) {
+        return value === "" || value === null || value === undefined ? "—" : Number(value).toLocaleString("ru-RU", { maximumFractionDigits: 2 }) + " ₽";
+    }
+
+    static escape(value) {
+        return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;");
+    }
+}
+</script>

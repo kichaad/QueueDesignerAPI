@@ -1,0 +1,8 @@
+node_modules/
+.clasprc.json
+.env
+.env.*
+.ssh/
+
+chrome-direct-profile/
+*.pem
