@@ -53,7 +53,12 @@ class SupplierOrdersView {
         const statusRows = (items || []).filter(item => !selectedSupplier || item.supplier === selectedSupplier);
         const countBy = (rows, key) => rows.reduce((counts, item) => counts.set(item[key], (counts.get(item[key]) || 0) + 1), new Map());
         this.syncSelect("supplierOrdersSupplierFilter", suppliers, "Все поставщики", selectedSupplier, countBy(supplierRows, "supplier"), supplierRows.length);
-        this.syncSelect("supplierOrdersStatusFilter", Store.state.dictionaries?.supplierOrderStatuses || [], "Без полученных", undefined, countBy(statusRows, "status"), statusRows.filter(item => this.matchesStatus(item, "")).length);
+        const statusSelect = document.getElementById("supplierOrdersStatusFilter");
+        if (statusSelect) {
+            const statuses = Store.state.dictionaries?.supplierOrderStatuses || [];
+            statusSelect.innerHTML = SupplyView.statusFilterOptions(statusRows, statuses, "status");
+            statusSelect.value = selectedStatus === "__all__" || statuses.includes(selectedStatus) ? selectedStatus : "";
+        }
     }
 
     static renderSupplierButtons(suppliers, selectedSupplier) {
@@ -78,7 +83,7 @@ class SupplierOrdersView {
     }
 
     static matchesStatus(item, status) {
-        return status ? item.status === status : item.status !== "Товар получен";
+        return SupplyView.matchesStatus(item.status, status);
     }
 
     static getFilteredItems(items) {

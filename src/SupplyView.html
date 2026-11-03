@@ -120,12 +120,7 @@ class SupplyView {
             result = result.filter(item => item.category !== "Расходники" && !String(item.supplier || "").trim());
         } else if (supplier) result = result.filter(item => item.supplier === supplier);
         else result = result.filter(item => item.category !== "Расходники");
-        // Завершённые позиции не загромождают очередь: их показываем только
-        // при явном выборе статуса «Товар получен».
-        if (!ignoreStatus) {
-            if (status) result = result.filter(item => item.purchaseStatus === status);
-            else result = result.filter(item => item.purchaseStatus !== "Товар получен");
-        }
+        if (!ignoreStatus) result = result.filter(item => this.matchesStatus(item.purchaseStatus, status));
         if (productKey && !ignoreProduct) result = result.filter(item => [item.contract, item.client, item.product].join("|") === productKey);
         if (query) result = result.filter(item => [item.contract, item.client, item.product, item.article, item.name, item.supplier]
             .some(value => String(value || "").toLowerCase().includes(query)));
@@ -160,16 +155,25 @@ class SupplyView {
         });
     }
 
+    static matchesStatus(value, filter) {
+        if (filter === "__all__") return true;
+        return filter ? value === filter : value !== "Товар получен";
+    }
+
+    static statusFilterOptions(rows, statuses, field) {
+        const count = status => rows.filter(item => this.matchesStatus(item[field], status)).length;
+        return `<option value="">В работе · ${count("")}</option><option value="__all__">Все · ${rows.length}</option>` + statuses.map(status =>
+            `<option value="${this.escape(status)}">${this.escape(status)} · ${count(status)}</option>`).join("");
+    }
+
     static syncStatusFilter(items) {
         const select = document.getElementById("supplyStatusFilter");
         if (!select) return;
         const selected = select.value;
         const statuses = Store.state.dictionaries?.purchaseStatuses || ["Новый", "Заказ поставщику", "Счёт получен", "Оплачено", "Товар получен"];
-        const rows = this.getFilteredItems(items, true);
-        const activeCount = rows.filter(item => item.purchaseStatus !== "Товар получен").length;
-        select.innerHTML = `<option value="">Все статусы · ${activeCount}</option>` + statuses.map(status =>
-            `<option value="${this.escape(status)}">${this.escape(status)} · ${rows.filter(item => item.purchaseStatus === status).length}</option>`).join("");
-        select.value = statuses.includes(selected) ? selected : "";
+        const rows = Store.getRole() === "plate" ? PlateMaterialView.getFilteredItems(items, true) : this.getFilteredItems(items, true);
+        select.innerHTML = this.statusFilterOptions(rows, statuses, "purchaseStatus");
+        select.value = selected === "__all__" || statuses.includes(selected) ? selected : "";
     }
 
     static syncProductFilter(items) {

@@ -50,19 +50,20 @@ class PlateMaterialView {
         });
     }
 
-    static getFilteredItems(items) {
+    static getFilteredItems(items, ignoreStatus = false) {
         let result = [...(items || [])];
         const category = Store.getSelectedUser();
         const query = String(document.getElementById("supplySearch")?.value || "").trim().toLowerCase();
         const status = document.getElementById("supplyStatusFilter")?.value || "";
         if (category) result = result.filter(item => item.category === category);
-        if (status) result = result.filter(item => item.purchaseStatus === status);
+        if (!ignoreStatus) result = result.filter(item => SupplyView.matchesStatus(item.purchaseStatus, status));
         if (query) result = result.filter(item => [item.contract, item.client, item.product, item.category, item.article, item.name, item.decor, item.sheetSize, item.supplier]
             .some(value => String(value || "").toLowerCase().includes(query)));
         return result;
     }
 
     static render(items) {
+        SupplyView.syncStatusFilter(items);
         const rows = this.getFilteredItems(items);
         const container = document.getElementById("ordersContainer");
         const total = document.getElementById("totalOrders");
