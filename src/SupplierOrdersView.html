@@ -49,11 +49,11 @@ class SupplierOrdersView {
 
         this.renderSupplierButtons(suppliers, selectedSupplier);
         const selectedStatus = document.getElementById("supplierOrdersStatusFilter")?.value || "";
-        const supplierRows = (items || []).filter(item => !selectedStatus || item.status === selectedStatus);
+        const supplierRows = (items || []).filter(item => this.matchesStatus(item, selectedStatus));
         const statusRows = (items || []).filter(item => !selectedSupplier || item.supplier === selectedSupplier);
         const countBy = (rows, key) => rows.reduce((counts, item) => counts.set(item[key], (counts.get(item[key]) || 0) + 1), new Map());
         this.syncSelect("supplierOrdersSupplierFilter", suppliers, "Все поставщики", selectedSupplier, countBy(supplierRows, "supplier"), supplierRows.length);
-        this.syncSelect("supplierOrdersStatusFilter", Store.state.dictionaries?.supplierOrderStatuses || [], "Все статусы", undefined, countBy(statusRows, "status"), statusRows.length);
+        this.syncSelect("supplierOrdersStatusFilter", Store.state.dictionaries?.supplierOrderStatuses || [], "Без полученных", undefined, countBy(statusRows, "status"), statusRows.filter(item => this.matchesStatus(item, "")).length);
     }
 
     static renderSupplierButtons(suppliers, selectedSupplier) {
@@ -77,10 +77,14 @@ class SupplierOrdersView {
         select.value = values.includes(selected) ? selected : "";
     }
 
+    static matchesStatus(item, status) {
+        return status ? item.status === status : item.status !== "Товар получен";
+    }
+
     static getFilteredItems(items) {
         const supplier = Store.getSelectedUser();
         const status = document.getElementById("supplierOrdersStatusFilter")?.value || "";
-        return (items || []).filter(item => (!supplier || item.supplier === supplier) && (!status || item.status === status));
+        return (items || []).filter(item => (!supplier || item.supplier === supplier) && this.matchesStatus(item, status));
     }
 
     static render(items) {
