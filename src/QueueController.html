@@ -333,6 +333,14 @@ static setSelectedUser(user) {
         return ApiClient.getSupplierOrderDetails(orderId);
     }
 
+    static prepareMdmSupplierOrdersExport(orderIds) {
+        return ApiClient.prepareMdmSupplierOrdersExport(orderIds);
+    }
+
+    static completeMdmSupplierOrdersExport(token) {
+        return this.runQueueAction(ApiClient.completeMdmSupplierOrdersExport(token));
+    }
+
     static exportSupplierOrderExcel(orderId) {
         return ApiClient.exportSupplierOrderExcel(orderId);
     }

@@ -22,3 +22,12 @@ The configured spreadsheet ID is preserved from the source. The purpose of the s
 ## Compare published version
 
 Run Actions → Apps Script → Run workflow → operation `compare`, branch `master`. This reads the exact immutable version referenced by `GAS_DEPLOYMENT_ID` and compares it to the selected repository commit, without pushing or publishing. The job summary lists identical counts and changed, repository-only, and published-only file names. Only filenames and counts are logged; source and OAuth values are not printed. This does not compare Script Properties, triggers, spreadsheet contents or runtime behavior. Comparison code uses the installed clasp authentication adapter from locked clasp 3.4.1; revalidate it when upgrading clasp.
+
+
+## МДМ: CSV корзины
+
+В «Снабжение → Заказы поставщикам» кнопка «Выгрузить МДМ CSV» отбирает из текущего списка только МДМ / «Счёт получен». Галочки выбирают целые заказы: частичный заказ не помечается выгруженным. Одинаковые артикулы объединяются, количество суммируется (единицы должны совпадать). Формат: UTF-8 без BOM и заголовка, `артикул;количество`, CRLF, без конечной точки с запятой; внутренние пробелы артикула сохраняются, крайние удаляются, десятичный разделитель — запятая. Максимум 500 уникальных артикулов; некорректные данные блокируют формирование без смены статусов.
+
+После подготовки нажмите «Сохранить CSV…». Если браузер разрешает выбор файла, выберите папку. Apps Script работает в iframe и может запрещать этот API: тогда используется обычное скачивание. Чтобы браузер спрашивал папку, включите «Всегда указывать место для скачивания» в его настройках загрузок. При обычном скачивании приложение не может узнать его результат: нажмите «Файл сохранён — отметить „Выгружен“» только после сохранения, при отмене закройте окно. При выборе файла через API статус меняется после успешного завершения записи. Файлы не загружаются в Drive или на сайт МДМ автоматически.
+
+Подготовка действительна 30 минут (кэш может быть очищен раньше). Перед сменой статуса состав и реквизиты повторно сверяются; при изменениях нужно сформировать файл заново. Повторное подтверждение безопасно для того же состава. Выгрузка меняет статус заказов на «Выгружен», материалы остаются на этапе «Счёт получен». Проверка: `node tests/mdm-export.cjs`. Живой импорт в корзину МДМ и рабочие Google-таблицы автоматически не тестируются.

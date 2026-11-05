@@ -23,6 +23,15 @@ class SupplierOrdersView {
     static bindControls() {
         if (this.initialized) return;
         this.initialized = true;
+        document.getElementById("exportMdmOrdersBtn").onclick = () => this.openMdmExport();
+        document.getElementById("mdmExportPrepare").onclick = () => this.prepareMdmExport();
+        document.getElementById("mdmExportSave").onclick = () => this.saveMdmExport();
+        document.getElementById("mdmExportConfirm").onclick = () => this.confirmMdmExport();
+        document.getElementById("mdmExportClose").onclick = () => {
+            if (this.mdmBusy) return;
+            this.mdmFile = null;
+            document.getElementById("mdmExportModal").classList.add("hidden");
+        };
         document.getElementById("supplierOrdersSupplierFilter").onchange = event => {
             QueueController.setSelectedUser(event.target.value || "");
         };
@@ -130,6 +139,113 @@ class SupplierOrdersView {
         container.querySelectorAll("[data-supplier-order-details]").forEach(button => {
             button.onclick = () => this.openDetails(button.dataset.supplierOrderDetails);
         });
+    }
+
+    static mdmFile = null;
+    static mdmBusy = false;
+
+    static openMdmExport() {
+        const candidates = this.getFilteredItems(QueueView.orders).filter(order =>
+            String(order.supplier || "").trim().toUpperCase() === "МДМ" && ["Счёт получен", "Счет получен"].includes(order.status));
+        const modal = document.getElementById("mdmExportModal");
+        this.mdmFile = null;
+        document.getElementById("mdmExportMessage").textContent = candidates.length
+            ? "Отмечены заказы МДМ в статусе «Счёт получен» из текущего списка. Снимите галочки с заказов, которые не нужно выгружать."
+            : "В текущем списке нет заказов МДМ в статусе «Счёт получен». Выберите «В работе», «Все» или «Счёт получен» и нужного поставщика.";
+        document.getElementById("mdmExportOrders").innerHTML = candidates.map(order => `<label class="mdm-export-order"><input type="checkbox" data-mdm-order="${this.escape(order.id)}" checked><span><strong>${this.escape(order.number)}</strong> · ${this.escape(order.invoiceNumbers || "Без номера счёта")}<small>${this.escape((order.products || []).join("; "))} · позиций: ${this.escape(order.lineCount)}</small></span></label>`).join("");
+        const prepare = document.getElementById("mdmExportPrepare");
+        prepare.classList.remove("hidden");
+        prepare.disabled = !candidates.length;
+        document.getElementById("mdmExportSave").classList.add("hidden");
+        document.getElementById("mdmExportConfirm").classList.add("hidden");
+        document.getElementById("mdmExportOrders").onchange = () => {
+            prepare.disabled = !document.querySelectorAll("[data-mdm-order]:checked").length;
+        };
+        modal.classList.remove("hidden");
+    }
+
+    static async prepareMdmExport() {
+        const ids = [...document.querySelectorAll("[data-mdm-order]:checked")].map(input => input.dataset.mdmOrder);
+        if (!ids.length || this.mdmBusy) return;
+        this.setMdmBusy(true);
+        try {
+            this.mdmFile = await QueueController.prepareMdmSupplierOrdersExport(ids);
+            if (!this.mdmFile?.token || !this.mdmFile.csv) throw new Error("Сервер не вернул CSV.");
+            document.getElementById("mdmExportMessage").textContent = `Файл готов: заказов ${this.mdmFile.orderCount}, артикулов ${this.mdmFile.articleCount}. Одинаковые артикулы объединены. Сохраните CSV, затем заказы получат статус «Выгружен».`;
+            document.getElementById("mdmExportOrders").querySelectorAll("input").forEach(input => { input.disabled = true; });
+            document.getElementById("mdmExportPrepare").classList.add("hidden");
+            document.getElementById("mdmExportSave").classList.remove("hidden");
+        } catch (error) {
+            document.getElementById("mdmExportMessage").textContent = error.message || String(error);
+            this.mdmFile = null;
+        } finally { this.setMdmBusy(false); }
+    }
+
+    static async saveMdmExport() {
+        if (!this.mdmFile || this.mdmBusy) return;
+        this.setMdmBusy(true);
+        let saved = false;
+        try {
+            if (typeof window.showSaveFilePicker === "function") {
+                try {
+                    const handle = await window.showSaveFilePicker({ suggestedName: this.mdmFile.filename,
+                        types: [{ description: "CSV для корзины МДМ", accept: { "text/csv": [".csv"] } }] });
+                    const writable = await handle.createWritable();
+                    try {
+                        await writable.write(this.mdmFile.csv);
+                        await writable.close();
+                    } catch (error) { await writable.abort().catch(() => {}); throw error; }
+                    saved = true;
+                } catch (error) {
+                    if (error.name === "AbortError") return;
+                    if (!["SecurityError", "NotAllowedError"].includes(error.name)) throw error;
+                }
+            }
+            if (saved) {
+                await this.finishMdmExport();
+            } else {
+                const url = URL.createObjectURL(new Blob([this.mdmFile.csv], { type: "text/csv;charset=utf-8" }));
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = this.mdmFile.filename;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 60000);
+                document.getElementById("mdmExportMessage").textContent = "CSV передан браузеру. Если окно выбора папки не появилось, включите «Всегда указывать место для скачивания» в настройках загрузок браузера. Статусы пока не изменены: подтвердите только после успешного сохранения файла. При отмене загрузки закройте это окно.";
+                document.getElementById("mdmExportConfirm").classList.remove("hidden");
+            }
+        } catch (error) {
+            document.getElementById("mdmExportMessage").textContent = (error.message || String(error)) + (saved
+                ? " Файл сохранён, но статусы не подтверждены. Повторите подтверждение."
+                : " Сохранение не завершено. Статусы не изменены; повторите сохранение.");
+            document.getElementById("mdmExportConfirm").classList.toggle("hidden", !saved);
+        } finally { this.setMdmBusy(false); }
+    }
+
+    static async finishMdmExport() {
+        if (!this.mdmFile) return;
+        const result = await QueueController.completeMdmSupplierOrdersExport(this.mdmFile.token);
+        this.mdmFile = null;
+        document.getElementById("mdmExportMessage").textContent = `Выгружено заказов: ${result.orderCount}. Статус изменён на «Выгружен».`;
+        document.getElementById("mdmExportSave").classList.add("hidden");
+        document.getElementById("mdmExportConfirm").classList.add("hidden");
+    }
+
+    static async confirmMdmExport() {
+        if (this.mdmBusy || !this.mdmFile) return;
+        this.setMdmBusy(true);
+        try { await this.finishMdmExport(); }
+        catch (error) { document.getElementById("mdmExportMessage").textContent = error.message || String(error); }
+        finally { this.setMdmBusy(false); }
+    }
+
+    static setMdmBusy(busy) {
+        this.mdmBusy = busy;
+        document.querySelectorAll("[data-mdm-order]").forEach(input => { input.disabled = busy || !!this.mdmFile; });
+        for (const id of ["mdmExportPrepare", "mdmExportSave", "mdmExportConfirm", "mdmExportClose"]) {
+            document.getElementById(id).disabled = busy;
+        }
     }
 
     static openDetails(orderId, resetState = true) {

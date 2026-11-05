@@ -4,16 +4,89 @@
  */
 class SupplierOrderService {
   static get ORDER_STATUSES() {
-    return ["Сформирован", "Счёт получен", "Оплачен", "Товар получен"];
+    return ["Сформирован", "Счёт получен", "Выгружен", "Оплачен", "Товар получен"];
   }
 
   static get MATERIAL_STATUS_BY_ORDER_STATUS() {
     return {
       "Сформирован": "Заказ поставщику",
       "Счёт получен": "Счёт получен",
+      "Выгружен": "Счёт получен",
       "Оплачен": "Оплачено",
       "Товар получен": "Товар получен"
     };
+  }
+
+  static collectMdmExport(orderIds, allowExported = false) {
+    const ids = [...new Set((Array.isArray(orderIds) ? orderIds : []).map(String).filter(Boolean))];
+    if (!ids.length) throw new Error("Выберите хотя бы один заказ МДМ.");
+    const sheet = this.ensureOrdersSheet();
+    const all = sheet.getDataRange().getValues();
+    const orders = ids.map(id => {
+      const index = all.findIndex((row, i) => i > 0 && String(row[0]) === id);
+      if (index < 1) throw new Error("Заказ не найден. Обновите список.");
+      const row = all[index];
+      if (String(row[2] || "").trim().toUpperCase() !== "МДМ" ||
+          !(["Счёт получен", "Счет получен"].includes(String(row[3])) || (allowExported && row[3] === "Выгружен"))) {
+        throw new Error("Для выгрузки нужны только заказы МДМ в статусе «Счёт получен». Обновите список.");
+      }
+      return { row: row, rowNumber: index + 1 };
+    });
+    const idSet = new Set(ids);
+    const lines = this.ensureLinesSheet().getDataRange().getValues().slice(1).filter(row => idSet.has(String(row[1])));
+    const grouped = new Map();
+    ids.forEach(id => {
+      if (!lines.some(row => String(row[1]) === id)) throw new Error("В одном из заказов нет позиций.");
+    });
+    lines.forEach(row => {
+      const article = String(row[6] || "").replace(/\u00a0/g, " ").trim();
+      const rawQuantity = typeof row[8] === "number" ? row[8] : Number(String(row[8] || "").trim().replace(",", "."));
+      if (!article || /[;\r\n\t"]/.test(article)) throw new Error("Пустой или некорректный артикул в заказе. Исправьте состав перед выгрузкой.");
+      if (!Number.isFinite(rawQuantity) || rawQuantity <= 0) throw new Error("Количество должно быть положительным числом: " + article);
+      const unit = String(row[9] || "").trim().toLowerCase();
+      const previous = grouped.get(article);
+      if (previous && previous.unit !== unit) throw new Error("Разные единицы у артикула " + article + ". Проверьте состав заказов.");
+      const quantity = Number(((previous ? previous.quantity : 0) + rawQuantity).toFixed(9));
+      if (!Number.isFinite(quantity) || quantity <= 0 || quantity > Number.MAX_SAFE_INTEGER) throw new Error("Некорректное суммарное количество: " + article);
+      grouped.set(article, { article: article, quantity: quantity, unit: unit });
+    });
+    if (grouped.size > 500) throw new Error("МДМ принимает не более 500 артикулов в файле. Уменьшите выбор заказов.");
+    const csv = [...grouped.values()].map(item => item.article + ";" + String(item.quantity).replace(".", ",")).join("\r\n");
+    // Сверяем весь состав и реквизиты заказов перед сменой статуса после сохранения.
+    const source = JSON.stringify({ orders: orders.map(item => [item.row[0], item.row[1], item.row[2], item.row[8]]), lines: lines });
+    const digest = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, source, Utilities.Charset.UTF_8));
+    return { orders: orders, csv: csv, articleCount: grouped.size, digest: digest, ids: ids };
+  }
+
+  static prepareMdmExport(orderIds) {
+    const lock = LockService.getDocumentLock();
+    lock.waitLock(30000);
+    try {
+      const data = this.collectMdmExport(orderIds);
+      const token = Utilities.getUuid();
+      CacheService.getUserCache().put("mdm-export-" + token, JSON.stringify({ ids: data.ids, digest: data.digest }), 1800);
+      return { token: token, csv: data.csv, articleCount: data.articleCount, orderCount: data.ids.length,
+        filename: "MDM_" + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyyMMdd_HHmmss") + ".csv" };
+    } finally { lock.releaseLock(); }
+  }
+
+  static completeMdmExport(token) {
+    const key = "mdm-export-" + String(token || "");
+    const cache = CacheService.getUserCache();
+    const lock = LockService.getDocumentLock();
+    lock.waitLock(30000);
+    try {
+      const saved = cache.get(key);
+      if (!saved) throw new Error("Подготовка выгрузки истекла. Статусы не изменены; сформируйте файл заново.");
+      const record = JSON.parse(saved);
+      const data = this.collectMdmExport(record.ids, true);
+      if (data.digest !== record.digest) throw new Error("Состав или реквизиты заказа изменились после формирования файла. Статусы не изменены; повторите выгрузку.");
+      const sheet = this.ensureOrdersSheet();
+      sheet.getRangeList(data.orders.map(item => "D" + item.rowNumber)).setValue("Выгружен");
+      sheet.getRangeList(data.orders.map(item => "F" + item.rowNumber)).setValue(new Date());
+      // Состав не меняется. Материалы остаются в статусе «Счёт получен».
+      return { orderCount: data.orders.length, status: "Выгружен" };
+    } finally { lock.releaseLock(); }
   }
 
   static get ORDER_HEADERS() {

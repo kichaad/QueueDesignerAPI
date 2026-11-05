@@ -2655,4 +2655,12 @@ table {
 @media (max-width: 700px) {
     .supplier-orders-section-active #supplierOrdersToolbar select { flex: 1 1 150px; min-width: 0; }
 }
+
+.mdm-export-content { width: min(800px, calc(100vw - 32px)); max-width: min(800px, calc(100vw - 32px)); max-height: 85vh; overflow-y: auto; }
+#mdmExportMessage { font-size: 14px; line-height: 1.5; margin: 12px 0; }
+#mdmExportOrders { max-height: 45vh; overflow-y: auto; }
+.mdm-export-order { display: flex; align-items: flex-start; gap: 10px; padding: 10px 4px; border-bottom: 1px solid #e2e8f0; cursor: pointer; }
+.mdm-export-order input { margin-top: 4px; }
+.mdm-export-order small { display: block; margin-top: 4px; color: #64748b; }
+.mdm-export-content .modal-actions { flex-wrap: wrap; gap: 6px; }
 </style>

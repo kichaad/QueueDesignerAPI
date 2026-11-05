@@ -243,6 +243,7 @@
 
     <div id="supplierOrdersToolbar" class="supply-toolbar hidden">
         <button class="reset-btn" id="createSupplierOrderBtn">＋ Сформировать заказ</button>
+        <button class="reset-btn" id="exportMdmOrdersBtn">⇩ Выгрузить МДМ CSV</button>
         <select id="supplierOrdersSupplierFilter" aria-label="Фильтр заказов по поставщику"><option value="">Все поставщики</option></select>
         <select id="supplierOrdersStatusFilter" aria-label="Фильтр заказов по статусу"><option value="">В работе</option><option value="__all__">Все</option></select>
     </div>
@@ -1005,4 +1006,18 @@
     </div>
 
 
+</div>
+
+<div id="mdmExportModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="mdmExportTitle">
+    <div class="modal-content mdm-export-content">
+        <h2 id="mdmExportTitle">Выгрузка заказов МДМ</h2>
+        <p id="mdmExportMessage" role="status" aria-live="polite"></p>
+        <div id="mdmExportOrders"></div>
+        <div class="modal-actions">
+            <button class="reset-btn" id="mdmExportClose">Закрыть</button>
+            <button class="reset-btn" id="mdmExportPrepare">Сформировать CSV</button>
+            <button class="reset-btn hidden" id="mdmExportSave">Сохранить CSV…</button>
+            <button class="reset-btn hidden" id="mdmExportConfirm">Файл сохранён — отметить «Выгружен»</button>
+        </div>
+    </div>
 </div>

@@ -273,6 +273,14 @@ class ApiClient {
         return this.run("getSupplierOrderDetails", orderId);
     }
 
+    static prepareMdmSupplierOrdersExport(orderIds) {
+        return this.run("prepareMdmSupplierOrdersExport", orderIds, window.APP_VERSION);
+    }
+
+    static completeMdmSupplierOrdersExport(token) {
+        return this.run("completeMdmSupplierOrdersExport", token, window.APP_VERSION);
+    }
+
     static exportSupplierOrderExcel(orderId) {
         return this.run("exportSupplierOrderExcel", orderId);
     }
