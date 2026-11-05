@@ -114,9 +114,14 @@ class SupplierOrderService {
     lock.waitLock(30000);
     try {
       const data = this.collectMdmExport(orderIds);
+      const blob = Utilities.newBlob("").setDataFromString(data.csv, "windows-1251");
+      if (blob.getDataAsString("windows-1251") !== data.csv) {
+        throw new Error("В артикулах есть символы, которые нельзя сохранить в Windows-1251. Замените необычные символы в составе заказа.");
+      }
       const token = Utilities.getUuid();
       CacheService.getUserCache().put("mdm-export-" + token, JSON.stringify({ ids: data.ids, digest: data.digest }), 1800);
-      return { token: token, csv: data.csv, articleCount: data.articleCount, orderCount: data.ids.length,
+      return { token: token, csv: data.csv, base64: Utilities.base64Encode(blob.getBytes()),
+        mimeType: "text/csv;charset=windows-1251", encoding: "windows-1251", articleCount: data.articleCount, orderCount: data.ids.length,
         filename: "MDM_" + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyyMMdd_HHmmss") + ".csv" };
     } catch (error) {
       if (error.issues) return { issues: error.issues };

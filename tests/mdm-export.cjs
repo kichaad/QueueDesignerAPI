@@ -4,6 +4,21 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const crypto = require('node:crypto');
 
+// Encoding adapter for the Apps Script Blob used in these local tests.
+const cp1251Decoder = new TextDecoder('windows-1251');
+const cp1251Map = new Map(Array.from({length:256},(_,byte)=>[cp1251Decoder.decode(Uint8Array.of(byte)),byte]));
+function newBlob() {
+ let bytes;
+ return {
+  setDataFromString(text, charset) {
+   assert.equal(charset,'windows-1251');
+   bytes=Uint8Array.from([...text].map(c=>cp1251Map.get(c) ?? 63));return this;
+  },
+  getBytes:()=>bytes,
+  getDataAsString:charset=>{assert.equal(charset,'windows-1251');return cp1251Decoder.decode(bytes);},
+ };
+}
+
 function fixture() {
   const orders = [['ID','Number','Supplier','Status'], ['a','MDM-1','МДМ','Счёт получен'], ['b','MDM-2','МДМ','Счёт получен'], ['c','Other','Blum','Счёт получен']];
   const lines = [['ID','Order'], ['l1','a','m1','36','Client','Desk',' A B ', 'Article',2,'шт'], ['l2','b','m2','37','Client','Shelf','A B','Article',3,'шт'], ['l3','b','m3','37','Client','Shelf','ZERO01','Other',0.5,'м']];
@@ -12,7 +27,7 @@ function fixture() {
     writes++; for (const ref of refs) { const col=ref.charCodeAt(0)-65, row=Number(ref.slice(1))-1;rows[row][col]=value; }
   }}) });
   const orderSheet = sheet(orders), lineSheet=sheet(lines), cache=new Map();
-  const context=vm.createContext({CONFIG:{SHEETS:{SUPPLIER_ORDERS:'orders',SUPPLIER_ORDER_LINES:'lines'}},SheetService:{getSpreadsheet:()=>({getSheetByName:name=>name==='orders'?orderSheet:lineSheet})},Utilities:{DigestAlgorithm:{SHA_256:'sha256'},Charset:{UTF_8:'utf8'},computeDigest:(_,s)=>crypto.createHash('sha256').update(s).digest(),base64Encode:b=>Buffer.from(b).toString('base64'),getUuid:()=>crypto.randomUUID(),formatDate:()=> '20261105_120000'},Session:{getScriptTimeZone:()=> 'Europe/Moscow'},LockService:{getDocumentLock:()=>({waitLock(){},releaseLock(){}})},CacheService:{getUserCache:()=>({get:k=>cache.get(k),put:(k,v)=>cache.set(k,v)})}});
+  const context=vm.createContext({CONFIG:{SHEETS:{SUPPLIER_ORDERS:'orders',SUPPLIER_ORDER_LINES:'lines'}},SheetService:{getSpreadsheet:()=>({getSheetByName:name=>name==='orders'?orderSheet:lineSheet})},Utilities:{newBlob,DigestAlgorithm:{SHA_256:'sha256'},Charset:{UTF_8:'utf8'},computeDigest:(_,s)=>crypto.createHash('sha256').update(s).digest(),base64Encode:b=>Buffer.from(b).toString('base64'),getUuid:()=>crypto.randomUUID(),formatDate:()=> '20261105_120000'},Session:{getScriptTimeZone:()=> 'Europe/Moscow'},LockService:{getDocumentLock:()=>({waitLock(){},releaseLock(){}})},CacheService:{getUserCache:()=>({get:k=>cache.get(k),put:(k,v)=>cache.set(k,v)})}});
   vm.runInContext(fs.readFileSync('src/SupplierOrderService.js','utf8')+'\nthis.Service=SupplierOrderService;',context);
   const Service=context.Service;
   Service.ensureOrdersSheet=()=>orderSheet;Service.ensureLinesSheet=()=>lineSheet;
@@ -105,4 +120,20 @@ test('order list flags problematic articles and clears warning after correction'
  let orders=f.Service.getOrders();assert.equal(orders.find(o=>o.id==='a').articleIssueCount,1);assert.equal(orders.find(o=>o.id==='b').articleIssueCount,1);
  f.Service.setLineArticle('a',['l1'],'001','');
  orders=f.Service.getOrders();assert.equal(orders.find(o=>o.id==='a').articleIssueCount,0);
+});
+
+
+test('Cyrillic CSV is delivered as Windows-1251 bytes without BOM',()=>{
+ const f=fixture();f.lines[1][6]='ФПС 087-23ЧР';
+ const file=f.Service.prepareMdmExport(['a']);
+ const bytes=Buffer.from(file.base64,'base64');
+ assert.equal(file.encoding,'windows-1251');
+ assert.equal(cp1251Decoder.decode(bytes),'ФПС 087-23ЧР;2');
+ assert.equal(bytes[0],0xD4);assert.notEqual(bytes[0],0xD0);
+ assert.equal(f.writes,0);
+});
+
+test('unsupported Unicode cannot silently become question marks',()=>{
+ const f=fixture();f.lines[1][6]='CODE😀';
+ assert.throws(()=>f.Service.prepareMdmExport(['a']),/Windows-1251/);assert.equal(f.writes,0);
 });
