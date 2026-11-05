@@ -43,12 +43,10 @@ class SupplierOrderService {
       const rawQuantity = typeof row[8] === "number" ? row[8] : Number(String(row[8] || "").trim().replace(",", "."));
       if (!article || /[;\r\n\t"]/.test(article)) throw new Error("Пустой или некорректный артикул в заказе. Исправьте состав перед выгрузкой.");
       if (!Number.isFinite(rawQuantity) || rawQuantity <= 0) throw new Error("Количество должно быть положительным числом: " + article);
-      const unit = String(row[9] || "").trim().toLowerCase();
       const previous = grouped.get(article);
-      if (previous && previous.unit !== unit) throw new Error("Разные единицы у артикула " + article + ". Проверьте состав заказов.");
       const quantity = Number(((previous ? previous.quantity : 0) + rawQuantity).toFixed(9));
       if (!Number.isFinite(quantity) || quantity <= 0 || quantity > Number.MAX_SAFE_INTEGER) throw new Error("Некорректное суммарное количество: " + article);
-      grouped.set(article, { article: article, quantity: quantity, unit: unit });
+      grouped.set(article, { article: article, quantity: quantity });
     });
     if (grouped.size > 500) throw new Error("МДМ принимает не более 500 артикулов в файле. Уменьшите выбор заказов.");
     const csv = [...grouped.values()].map(item => item.article + ";" + String(item.quantity).replace(".", ",")).join("\r\n");

@@ -39,10 +39,10 @@ test('rejects wrong supplier/status, missing orders, invalid articles and quanti
  const f=fixture();f.orders[1][3]='Оплачен';assert.throws(()=>f.Service.prepareMdmExport(['a']));
 });
 
-test('500-article limit and conflicting units are enforced before writing',()=>{
+test('500-article limit is enforced before writing',()=>{
  const f=fixture();f.lines.splice(1);for(let i=0;i<501;i++)f.lines.push(['l'+i,'a','','','','','ART'+i,'',1,'шт']);
  assert.throws(()=>f.Service.prepareMdmExport(['a']),/500/);assert.equal(f.writes,0);
- const g=fixture();g.lines[2][9]='м';assert.throws(()=>g.Service.prepareMdmExport(['a','b']),/единицы/);
+
 });
 
 test('changed source, changed status and expired token cannot mark orders exported',()=>{
@@ -58,4 +58,16 @@ test('matches the supplied MDM CSV sample byte-for-byte',()=>{
  const f=fixture();f.lines.splice(1);
  expected.split('\r\n').forEach((text,i)=>{const [article,quantity]=text.split(';');f.lines.push(['line'+i,'a','','','','',article,'',Number(quantity),'шт']);});
  assert.equal(f.Service.prepareMdmExport(['a']).csv,expected);
+});
+
+
+test('same article quantities are combined despite different or empty units',()=>{
+ for(const unit of ['м', '', 'компл']) {
+  const f=fixture();f.lines[2][9]=unit;
+  const file=f.Service.prepareMdmExport(['a','b']);
+  assert.equal(file.csv,'A B;5\r\nZERO01;0,5');
+  assert.equal(f.writes,0);
+  f.Service.completeMdmExport(file.token);
+  assert.equal(f.orders[1][3],'Выгружен');assert.equal(f.orders[2][3],'Выгружен');
+ }
 });
