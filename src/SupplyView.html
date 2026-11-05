@@ -627,6 +627,8 @@ class SupplyView {
         const supplier = document.getElementById("supplierOrderSupplier").value;
         const rowIds = this.supplierOrderCandidates.filter(item => item.selected).map(item => item.rowId);
         if (!supplier || !rowIds.length) return QueueView.showMessage(new Error("Выберите хотя бы одну позицию для заказа."));
+        const problemRows = this.supplierOrderCandidates.filter(item => item.selected && (!String(item.article || "").trim() || /[;\r\n\t"]/.test(String(item.article)) || String(item.article).trim().startsWith("=")));
+        if (problemRows.length && !window.confirm("Проверьте артикулы перед созданием заказа:\n\n" + problemRows.map(item => [item.contract, item.client, item.product, item.name].filter(Boolean).join(" · ") + (String(item.article || "").trim() ? " — недопустимые символы в артикуле" : " — нет артикула")).join("\n") + "\n\nСоздать заказ с предупреждением? Артикулы можно исправить в его составе; до исправления выгрузка МДМ недоступна.")) return;
         const button = document.getElementById("createSupplierOrder");
         button.disabled = true;
         button.textContent = "Формируем…";
@@ -650,10 +652,11 @@ class SupplyView {
             }
             const details = document.getElementById("supplierOrderDetails");
             const lines = data.lines || [];
-            details.innerHTML = `<h3>${this.escape(data.order.number)} · ${this.escape(data.order.supplier)}</h3><table><thead><tr><th>Артикул</th><th>Наименование</th><th>Кол-во</th><th>Ед.</th><th>Цена</th><th>Сумма</th><th>Изделий</th></tr></thead><tbody>${lines.map(line => `<tr>
+            details.innerHTML = `<h3>${this.escape(data.order.number)} · ${this.escape(data.order.supplier)}</h3><button class="reset-btn" data-edit-order-articles>Исправить артикулы</button><table><thead><tr><th>Артикул</th><th>Наименование</th><th>Кол-во</th><th>Ед.</th><th>Цена</th><th>Сумма</th><th>Изделий</th></tr></thead><tbody>${lines.map(line => `<tr>
                 <td>${this.escape(line.article || "—")}</td><td>${this.escape(line.name)}</td><td>${this.escape(line.quantity)}</td><td>${this.escape(line.unit)}</td>
                 <td>${line.price === "" || line.price === null ? "—" : Number(line.price).toLocaleString("ru-RU", { maximumFractionDigits: 2 })}</td>
                 <td>${line.total === "" || line.total === null ? "—" : Number(line.total).toLocaleString("ru-RU", { maximumFractionDigits: 2 })}</td><td>${this.escape(line.sourceCount)}</td></tr>`).join("")}</tbody></table>`;
+            details.querySelector("[data-edit-order-articles]").onclick = () => SupplierOrdersView.openDetails(data.order.id);
             details.classList.remove("hidden");
         }).catch(error => QueueView.showMessage(error));
     }

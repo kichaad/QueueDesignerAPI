@@ -273,6 +273,10 @@ class ApiClient {
         return this.run("getSupplierOrderDetails", orderId);
     }
 
+    static setSupplierOrderLineArticle(orderId, lineIds, article, expectedArticle) {
+        return this.run("setSupplierOrderLineArticle", orderId, lineIds, article, expectedArticle, window.APP_VERSION);
+    }
+
     static prepareMdmSupplierOrdersExport(orderIds) {
         return this.run("prepareMdmSupplierOrdersExport", orderIds, window.APP_VERSION);
     }

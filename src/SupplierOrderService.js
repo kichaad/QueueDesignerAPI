@@ -17,6 +17,53 @@ class SupplierOrderService {
     };
   }
 
+  static articleProblem(value) {
+    const article = String(value || "").replace(/\u00a0/g, " ").trim();
+    if (!article) return "Не заполнен артикул";
+    if (/[;\r\n\t"]/.test(article) || article.startsWith("=")) return "Артикул содержит недопустимые символы";
+    return "";
+  }
+
+  static exportLineIssues(orders, lines) {
+    const byId = new Map(orders.map(item => [String(item.row[0]), item.row]));
+    return lines.map(row => {
+      const order = byId.get(String(row[1]));
+      const articleError = this.articleProblem(row[6]);
+      const quantity = typeof row[8] === "number" ? row[8] : Number(String(row[8] || "").trim().replace(",", "."));
+      const reasons = [articleError, !Number.isFinite(quantity) || quantity <= 0 ? "Количество должно быть положительным числом" : ""].filter(Boolean);
+      return reasons.length ? { orderId: String(row[1]), orderNumber: String(order[1]), lineId: String(row[0]),
+        name: String(row[7] || ""), product: [row[3], row[4], row[5]].map(value => String(value || "")).join(" · "),
+        article: String(row[6] || ""), reason: reasons.join("; "), articleError: !!articleError } : null;
+    }).filter(Boolean);
+  }
+
+  static setLineArticle(orderId, lineIds, article, expectedArticle) {
+    const value = String(article || "").replace(/\u00a0/g, " ").trim();
+    const problem = this.articleProblem(value);
+    if (problem) throw new Error(problem + ". Исправьте артикул и повторите сохранение.");
+    const ids = [...new Set((Array.isArray(lineIds) ? lineIds : []).map(String))];
+    if (!ids.length) throw new Error("Не выбраны строки заказа.");
+    const lock = LockService.getDocumentLock();
+    lock.waitLock(30000);
+    try {
+      const ordersSheet = this.ensureOrdersSheet();
+      const orderRows = ordersSheet.getDataRange().getValues();
+      const orderIndex = orderRows.findIndex((row, i) => i > 0 && String(row[0]) === String(orderId));
+      if (orderIndex < 1) throw new Error("Заказ поставщику не найден.");
+      const lineSheet = this.ensureLinesSheet();
+      const rows = lineSheet.getDataRange().getValues().map((row, i) => ({ row: row, number: i + 1 }))
+        .filter(item => item.number > 1 && String(item.row[1]) === String(orderId) && ids.includes(String(item.row[0])));
+      if (rows.length !== ids.length || rows.some(item => String(item.row[6] || "") !== String(expectedArticle || ""))) {
+        throw new Error("Строки или артикул уже изменились. Обновите состав заказа и повторите исправление.");
+      }
+      const ranges = lineSheet.getRangeList(rows.map(item => "G" + item.number));
+      ranges.setNumberFormat("@");
+      ranges.setValue(value);
+      ordersSheet.getRange(orderIndex + 1, 6).setValue(new Date());
+      return { orderId: String(orderId), lineIds: ids, article: value };
+    } finally { lock.releaseLock(); }
+  }
+
   static collectMdmExport(orderIds, allowExported = false) {
     const ids = [...new Set((Array.isArray(orderIds) ? orderIds : []).map(String).filter(Boolean))];
     if (!ids.length) throw new Error("Выберите хотя бы один заказ МДМ.");
@@ -34,6 +81,12 @@ class SupplierOrderService {
     });
     const idSet = new Set(ids);
     const lines = this.ensureLinesSheet().getDataRange().getValues().slice(1).filter(row => idSet.has(String(row[1])));
+    const issues = this.exportLineIssues(orders, lines);
+    if (issues.length) {
+      const error = new Error("Найдены проблемные позиции: " + issues.map(issue => issue.orderNumber + ": " + issue.name + " — " + issue.reason).join("; "));
+      error.issues = issues;
+      throw error;
+    }
     const grouped = new Map();
     ids.forEach(id => {
       if (!lines.some(row => String(row[1]) === id)) throw new Error("В одном из заказов нет позиций.");
@@ -65,6 +118,9 @@ class SupplierOrderService {
       CacheService.getUserCache().put("mdm-export-" + token, JSON.stringify({ ids: data.ids, digest: data.digest }), 1800);
       return { token: token, csv: data.csv, articleCount: data.articleCount, orderCount: data.ids.length,
         filename: "MDM_" + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyyMMdd_HHmmss") + ".csv" };
+    } catch (error) {
+      if (error.issues) return { issues: error.issues };
+      throw error;
     } finally { lock.releaseLock(); }
   }
 
@@ -125,9 +181,11 @@ class SupplierOrderService {
     const rows = ordersSheet.getDataRange().getValues().slice(1).filter(row => row[0]);
     const linesSheet = SheetService.getSpreadsheet().getSheetByName(CONFIG.SHEETS.SUPPLIER_ORDER_LINES);
     const productsByOrderId = {};
+    const articleIssuesByOrderId = {};
     if (linesSheet && linesSheet.getLastRow() >= 2) {
       linesSheet.getDataRange().getValues().slice(1).forEach(line => {
         const orderId = String(line[1] || "").trim();
+        if (orderId && this.articleProblem(line[6])) articleIssuesByOrderId[orderId] = (articleIssuesByOrderId[orderId] || 0) + 1;
         const product = [line[3], line[4], line[5]].map(value => String(value || "").trim()).filter(Boolean).join(" · ");
         if (!orderId || !product) return;
         if (!productsByOrderId[orderId]) productsByOrderId[orderId] = new Set();
@@ -138,6 +196,7 @@ class SupplierOrderService {
       id: String(row[0]), number: String(row[1]), supplier: String(row[2]), status: String(row[3] || "Сформирован"),
       createdAt: row[4], updatedAt: row[5], total: row[6], lineCount: Number(row[7] || 0),
       invoiceNumbers: String(row[8] || ""),
+      articleIssueCount: articleIssuesByOrderId[String(row[0])] || 0,
       products: [...(productsByOrderId[String(row[0])] || [])].sort((left, right) => left.localeCompare(right, "ru"))
     })).sort((left, right) => new Date(right.createdAt || 0) - new Date(left.createdAt || 0));
   }

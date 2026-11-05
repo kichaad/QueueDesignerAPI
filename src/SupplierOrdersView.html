@@ -115,8 +115,8 @@ class SupplierOrdersView {
         }
         const statuses = Store.state.dictionaries?.supplierOrderStatuses || [];
         container.innerHTML = `<div class="block">
-            <div class="table-wrap"><table class="supplier-orders-table"><thead><tr><th>Номер</th><th>Создан</th><th>Поставщик</th><th>Статус</th><th>Номер счёта</th><th>Изделия</th><th>Позиций</th><th>Сумма</th><th>Действия</th></tr></thead><tbody>${rows.map(order => `<tr>
-                <td>${this.escape(order.number)}</td><td>${this.escape(QueueView.formatDeadline(order.createdAt))}</td><td>${this.escape(order.supplier)}</td>
+            <div class="table-wrap"><table class="supplier-orders-table"><thead><tr><th>Номер</th><th>Создан</th><th>Поставщик</th><th>Статус</th><th>Номер счёта</th><th>Изделия</th><th>Позиций</th><th>Сумма</th><th>Действия</th></tr></thead><tbody>${rows.map(order => `<tr class="${order.articleIssueCount ? "supplier-order-article-warning" : ""}">
+                <td>${this.escape(order.number)}${order.articleIssueCount ? `<small class="article-warning-label">⚠ Проблемы с артикулами: ${order.articleIssueCount}</small>` : ""}</td><td>${this.escape(QueueView.formatDeadline(order.createdAt))}</td><td>${this.escape(order.supplier)}</td>
                 <td><select data-supplier-order-status="${this.escape(order.id)}">${statuses.map(status => `<option value="${this.escape(status)}"${status === order.status ? " selected" : ""}>${this.escape(status)}</option>`).join("")}</select></td>
                 <td><textarea class="supplier-order-invoice-numbers" rows="2" data-supplier-order-invoice-numbers="${this.escape(order.id)}" aria-label="Номер счёта для заказа ${this.escape(order.number)}">${this.escape(order.invoiceNumbers || "")}</textarea></td>
                 <td class="supplier-order-products-cell">${(order.products || []).length ? `<div class="supplier-order-products-list">${order.products.map(product => `<span>${this.escape(product)}</span>`).join("")}</div>` : "—"}</td>
@@ -149,6 +149,7 @@ class SupplierOrdersView {
             String(order.supplier || "").trim().toUpperCase() === "МДМ" && ["Счёт получен", "Счет получен"].includes(order.status));
         const modal = document.getElementById("mdmExportModal");
         this.mdmFile = null;
+        this.showMdmIssues([]);
         document.getElementById("mdmExportMessage").textContent = candidates.length
             ? "Отмечены заказы МДМ в статусе «Счёт получен» из текущего списка. Снимите галочки с заказов, которые не нужно выгружать."
             : "В текущем списке нет заказов МДМ в статусе «Счёт получен». Выберите «В работе», «Все» или «Счёт получен» и нужного поставщика.";
@@ -164,12 +165,47 @@ class SupplierOrdersView {
         modal.classList.remove("hidden");
     }
 
+    static showMdmIssues(issues) {
+        this.mdmIssues = issues;
+        const box = document.getElementById("mdmExportIssues");
+        box.innerHTML = issues.map((issue, index) => `<div class="mdm-article-issue">
+            <strong>${this.escape(issue.orderNumber)} · ${this.escape(issue.name)}</strong>
+            <small>${this.escape(issue.product)}</small><p>${this.escape(issue.reason)}</p>
+            ${issue.articleError ? `<div class="article-edit-controls"><input type="text" data-mdm-article="${index}" value="${this.escape(issue.article)}" aria-label="Артикул ${this.escape(issue.name)}"><button class="reset-btn" data-mdm-article-save="${index}">Сохранить артикул</button></div>` : ""}
+        </div>`).join("");
+        box.querySelectorAll("[data-mdm-article-save]").forEach(button => button.onclick = async () => {
+            if (this.mdmBusy) return;
+            this.setMdmBusy(true);
+            const index = Number(button.dataset.mdmArticleSave);
+            const issue = this.mdmIssues[index];
+            const input = box.querySelector(`[data-mdm-article="${index}"]`);
+            button.disabled = true;
+            input.disabled = true;
+            try {
+                await QueueController.setSupplierOrderLineArticle(issue.orderId, [issue.lineId], input.value, issue.article);
+                button.closest(".mdm-article-issue").remove();
+                document.getElementById("mdmExportMessage").textContent = "Артикул сохранён. Исправьте остальные строки и нажмите «Сформировать CSV» повторно.";
+            } catch (error) {
+                document.getElementById("mdmExportMessage").textContent = error.message || String(error);
+                button.disabled = false;
+                input.disabled = false;
+            } finally { this.setMdmBusy(false); }
+        });
+    }
+
     static async prepareMdmExport() {
         const ids = [...document.querySelectorAll("[data-mdm-order]:checked")].map(input => input.dataset.mdmOrder);
         if (!ids.length || this.mdmBusy) return;
         this.setMdmBusy(true);
         try {
             this.mdmFile = await QueueController.prepareMdmSupplierOrdersExport(ids);
+            if (this.mdmFile?.issues) {
+                this.showMdmIssues(this.mdmFile.issues);
+                document.getElementById("mdmExportMessage").textContent = `Найдены проблемные позиции: ${this.mdmFile.issues.length}. Исправьте артикулы ниже. Файл не сформирован, статусы не изменены.`;
+                this.mdmFile = null;
+                return;
+            }
+            this.showMdmIssues([]);
             if (!this.mdmFile?.token || !this.mdmFile.csv) throw new Error("Сервер не вернул CSV.");
             document.getElementById("mdmExportMessage").textContent = `Файл готов: заказов ${this.mdmFile.orderCount}, артикулов ${this.mdmFile.articleCount}. Одинаковые артикулы объединены. Сохраните CSV, затем заказы получат статус «Выгружен».`;
             document.getElementById("mdmExportOrders").querySelectorAll("input").forEach(input => { input.disabled = true; });
@@ -293,22 +329,32 @@ class SupplierOrdersView {
             <label><input type="checkbox" id="supplierOrderAggregate"${this.aggregateDetails ? " checked" : ""}> Объединить одинаковые материалы</label>
             <button class="reset-btn" id="supplierOrderAddMaterials">＋ Добавить материалы</button>
             ${batchActions}
-        </div>` : `<div class="supplier-order-details-note">${exportButton}${invoiceButton}<span>Состав зафиксирован: после получения счёта редактирование недоступно.</span></div>`;
+        </div>` : `<div class="supplier-order-details-note">${exportButton}${invoiceButton}<span>Состав зафиксирован. Артикулы можно исправлять; количество и состав недоступны для изменения.</span></div>`;
         const detailColumn = this.aggregateDetails ? "Изделий" : "Изделие";
         const actionsColumn = editable ? "<th>Действия</th>" : "";
-        const rows = lines.map(line => {
+        const rows = lines.map((line, index) => {
             const quantity = this.aggregateDetails ? this.escape(line.quantity) : `<input type="number" min="0.001" step="any" value="${this.escape(line.quantity)}" data-order-line-quantity="${this.escape(line.lineId)}">`;
             const unit = this.aggregateDetails ? this.escape(line.unit) : `<input type="text" value="${this.escape(line.unit)}" data-order-line-unit="${this.escape(line.lineId)}">`;
             const detail = this.aggregateDetails ? this.escape(line.sourceCount) : `${this.escape(line.contract)} · ${this.escape(line.client)} · ${this.escape(line.product)}`;
             const lineIds = this.aggregateDetails ? line.lineIds : [line.lineId];
             const actions = editable ? `<td class="supplier-order-line-actions">${!this.aggregateDetails ? `<button class="reset-btn" data-order-line-save="${this.escape(line.lineId)}">Сохранить</button>` : ""}<button class="reset-btn supplier-order-line-remove" data-order-line-remove="${this.escape(lineIds.join(","))}">Удалить</button></td>` : "";
             const selection = editable && !this.aggregateDetails ? `<td><input type="checkbox" data-order-line-select="${this.escape(line.lineId)}"${this.selectedLineIds.has(line.lineId) ? " checked" : ""}></td>` : "";
-            return `<tr>${selection}<td>${this.escape(line.article || "—")}</td><td>${this.escape(line.name)}</td><td>${quantity}</td><td>${unit}</td><td>${this.formatMoney(line.price)}</td><td>${this.formatMoney(line.total)}</td><td>${detail}</td>${actions}</tr>`;
+            return `<tr>${selection}<td><div class="article-edit-controls"><input type="text" data-detail-article="${index}" value="${this.escape(line.article || "")}" aria-label="Артикул ${this.escape(line.name)}"><button class="reset-btn" data-detail-article-save="${index}">Сохранить артикул</button></div></td><td>${this.escape(line.name)}</td><td>${quantity}</td><td>${unit}</td><td>${this.formatMoney(line.price)}</td><td>${this.formatMoney(line.total)}</td><td>${detail}</td>${actions}</tr>`;
         }).join("");
         const selectionHeader = editable && !this.aggregateDetails ? `<th><input type="checkbox" id="supplierOrderSelectAll"${lines.length && selectedCount === lines.length ? " checked" : ""}></th>` : "";
         document.getElementById("supplierOrderDetailsTitle").textContent = `${data.order.number} · ${data.order.supplier}`;
         document.getElementById("supplierOrderDetailsContent").innerHTML = `${toolbar}${this.renderAddPanel()}<table><thead><tr>${selectionHeader}<th>Артикул</th><th>Наименование</th><th>Кол-во</th><th>Ед.</th><th>Цена</th><th>Сумма</th><th>${detailColumn}</th>${actionsColumn}</tr></thead><tbody>${rows || "<tr><td colspan=\"9\">В заказе нет позиций.</td></tr>"}</tbody></table>`;
         this.bindDetailControls();
+        document.querySelectorAll("[data-detail-article-save]").forEach(button => button.onclick = async () => {
+            const index = Number(button.dataset.detailArticleSave);
+            const line = lines[index];
+            const input = document.querySelector(`[data-detail-article="${index}"]`);
+            button.disabled = true;
+            try {
+                await QueueController.setSupplierOrderLineArticle(data.order.id, line.lineIds || [line.lineId], input.value, line.article);
+                this.openDetails(data.order.id, false);
+            } catch (error) { QueueView.showMessage(error); button.disabled = false; }
+        });
     }
 
     static renderAddPanel() {

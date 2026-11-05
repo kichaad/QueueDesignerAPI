@@ -333,6 +333,13 @@ static setSelectedUser(user) {
         return ApiClient.getSupplierOrderDetails(orderId);
     }
 
+    static setSupplierOrderLineArticle(orderId, lineIds, article, expectedArticle) {
+        return ApiClient.setSupplierOrderLineArticle(orderId, lineIds, article, expectedArticle).then(response => {
+            if (Store.getRole() === "supplierOrders") return this.applyActionSnapshot(response);
+            return response.result;
+        });
+    }
+
     static prepareMdmSupplierOrdersExport(orderIds) {
         return ApiClient.prepareMdmSupplierOrdersExport(orderIds);
     }

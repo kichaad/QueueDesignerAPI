@@ -107,6 +107,7 @@ class Api {
       createSupplierOrder: createSupplierOrder,
       getSupplierOrderDetails: getSupplierOrderDetails,
       exportSupplierOrderExcel: exportSupplierOrderExcel,
+      setSupplierOrderLineArticle: setSupplierOrderLineArticle,
       prepareMdmSupplierOrdersExport: prepareMdmSupplierOrdersExport,
       completeMdmSupplierOrdersExport: completeMdmSupplierOrdersExport,
       exportAllOrdersExcel: exportAllOrdersExcel,
