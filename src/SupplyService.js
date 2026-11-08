@@ -119,10 +119,11 @@ class SupplyService {
     if (!source.length) return ldspSawPassed
       ? { state: "green", label: "Получено" }
       : { state: "none", label: "Нет позиций" };
-    const normalized = source.map(status => String(status || "Новый").trim());
+    const normalized = source.map(status => String(status || "Новый").trim().replace(/^Счет получен$/, "Счёт получен"));
     const allReceived = normalized.every(status => status === "Товар получен");
-    const hasUnpaid = normalized.some(status => status !== "Оплачено" && status !== "Товар получен");
-    if (hasUnpaid) return { state: "red", label: "Не оплачено" };
+    const hasNoInvoice = normalized.some(status => !["Счёт получен", "Оплачено", "Товар получен"].includes(status));
+    if (hasNoInvoice) return { state: "red", label: "Счёт не получен" };
+    if (normalized.some(status => status === "Счёт получен")) return { state: "lilac", label: "Счёт получен — ожидает оплаты" };
     if (allReceived) return { state: "green", label: "Получено" };
     return { state: "yellow", label: "Оплачено" };
   }

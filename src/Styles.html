@@ -846,6 +846,7 @@ body.manufacturing-section-active { padding-top: 8px; }
 }
 .master-supply-signal {
     display: inline-block;
+    position: relative;
     width: 13px;
     height: 13px;
     background: #cbd5e1;
@@ -856,6 +857,13 @@ body.manufacturing-section-active { padding-top: 8px; }
 .master-supply-square { border-radius: 3px; }
 .master-supply-triangle { clip-path: polygon(50% 5%, 96% 94%, 4% 94%); }
 .master-supply-diamond { transform: rotate(45deg) scale(.86); }
+.master-supply-none { background: #ffffff; border-color: #000000; }
+.master-supply-none.master-supply-triangle { background: #000000; border: 0; }
+.master-supply-none.master-supply-triangle::after {
+    content: ""; position: absolute; inset: 2px; background: #ffffff;
+    clip-path: polygon(50% 5%, 96% 94%, 4% 94%);
+}
+.master-supply-lilac { background: #d43dff; border-color: #a800d6; }
 .master-supply-red { background: #ef4444; border-color: #dc2626; }
 .master-supply-yellow { background: #facc15; border-color: #ca8a04; }
 .master-supply-green { background: #22c55e; border-color: #16a34a; }

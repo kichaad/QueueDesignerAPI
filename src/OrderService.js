@@ -284,9 +284,11 @@ class OrderService {
       if (isMasterMatrix) {
         masterSupplyColumns.forEach((group, index) => {
           sheet.setColumnWidth(index + 2, 88);
-          const colorByState = { none: "#e5e7eb", red: "#fecaca", yellow: "#fef3c7", green: "#dcfce7" };
+          const colorByState = { none: "#ffffff", red: "#ff3030", lilac: "#d43dff", yellow: "#ffe600", green: "#00d45a" };
           const backgrounds = source.map(item => [colorByState[String(((item.supplySignals || {})[group.key] || {}).state || "none")] || colorByState.none]);
-          sheet.getRange(5, index + 2, backgrounds.length, 1).setBackgrounds(backgrounds);
+          sheet.getRange(5, index + 2, backgrounds.length, 1).setBackgrounds(backgrounds)
+            .setFontColor("#000000").setFontWeight("bold")
+            .setBorder(true, true, true, true, true, true, "#000000", SpreadsheetApp.BorderStyle.SOLID);
         });
         sheet.setColumnWidth(11, 280);
         [12, 13, 14, 15, 16].forEach(column => sheet.setColumnWidth(column, 180));

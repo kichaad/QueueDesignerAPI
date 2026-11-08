@@ -2311,7 +2311,7 @@ static renderMasterSupplySignalCells(order) {
     const signals = order.supplySignals || {};
     return this.getMasterSupplyGroups().map(group => {
         const signal = signals[group.key] || { state: "none", label: "Нет позиций" };
-        const state = ["none", "red", "yellow", "green"].includes(String(signal.state || "")) ? String(signal.state) : "none";
+        const state = ["none", "red", "lilac", "yellow", "green"].includes(String(signal.state || "")) ? String(signal.state) : "none";
         const label = String(signal.label || "Нет позиций");
         const title = `${group.title}: ${label}`;
         return `<td class="master-supply-signal-cell"><span class="master-supply-signal master-supply-${group.shape} master-supply-${state}" title="${this.escapeHtml(title)}" aria-label="${this.escapeHtml(title)}"></span></td>`;
