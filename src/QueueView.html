@@ -2232,7 +2232,7 @@ static exportCurrentListExcel(button) {
     if (role === "supplierOrders") {
         return request("supplierOrders", SupplierOrdersView.getFilteredItems(this.orders).map((item, index) => ({
             number: index + 1, orderNumber: value(item.number), createdAt: this.formatDeadline(item.createdAt),
-            supplier: value(item.supplier), status: value(item.status), invoices: value(item.invoiceNumbers),
+            supplier: value(item.supplier), status: value(item.status), invoices: value(item.invoiceNumbers), deliveryDate: value(item.deliveryDate ? item.deliveryDate.split("-").reverse().join(".") : ""),
             products: (item.products || []).join(", ") || "—", positions: value(item.lineCount),
             total: Number(item.total || 0).toLocaleString("ru-RU", { maximumFractionDigits: 2 })
         })));

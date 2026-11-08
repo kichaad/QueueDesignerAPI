@@ -269,6 +269,10 @@ class ApiClient {
         return this.run("createSupplierOrder", supplier, rowIds);
     }
 
+    static saveSupplierOrderDeliveryDates(orderId, payload) {
+        return this.run("saveSupplierOrderDeliveryDates", orderId, payload, window.APP_VERSION);
+    }
+
     static getSupplierOrderDetails(orderId) {
         return this.run("getSupplierOrderDetails", orderId);
     }

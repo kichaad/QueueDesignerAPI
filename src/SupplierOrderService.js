@@ -17,6 +17,45 @@ class SupplierOrderService {
     };
   }
 
+  static deliveryDate(value) {
+    if (value instanceof Date) return Utilities.formatDate(value, Session.getScriptTimeZone(), "yyyy-MM-dd");
+    const date = String(value || "").trim();
+    if (!date) return "";
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date.slice(0, 4) < "1900" ||
+        new Date(date + "T12:00:00Z").toISOString().slice(0, 10) !== date) throw new Error("Укажите корректную дату поставки.");
+    return date;
+  }
+
+  static canSetDeliveryDate(status) {
+    return ["Счёт получен", "Счет получен", "Выгружен", "Оплачен", "Товар получен"].includes(status);
+  }
+
+  static saveDeliveryDates(orderId, payload) {
+    const data = payload || {};
+    const date = this.deliveryDate(data.date);
+    const lock = LockService.getDocumentLock();
+    lock.waitLock(30000);
+    try {
+      const sheet = this.ensureOrdersSheet();
+      const orders = sheet.getDataRange().getValues();
+      const index = orders.findIndex((row, i) => i > 0 && String(row[0]) === String(orderId));
+      if (index < 1) throw new Error("Заказ поставщику не найден.");
+      if (!this.canSetDeliveryDate(String(orders[index][3]))) throw new Error("Дата поставки доступна после получения счёта.");
+      if (data.lineIds !== undefined) {
+        const ids = [...new Set((Array.isArray(data.lineIds) ? data.lineIds : []).map(String))];
+        const linesSheet = this.ensureLinesSheet();
+        const lines = linesSheet.getDataRange().getValues().map((row, i) => ({ row, number: i + 1 }))
+          .filter(item => item.number > 1 && String(item.row[1]) === String(orderId) && ids.includes(String(item.row[0])));
+        if (!ids.length || lines.length !== ids.length) throw new Error("Строки заказа изменились. Обновите состав.");
+        linesSheet.getRangeList(lines.map(item => "M" + item.number)).setNumberFormat("@").setValue(date);
+      } else {
+        sheet.getRange(index + 1, 10).setNumberFormat("@").setValue(date);
+      }
+      sheet.getRange(index + 1, 6).setValue(new Date());
+      return { orderId: String(orderId) };
+    } finally { lock.releaseLock(); }
+  }
+
   static articleProblem(value) {
     const article = String(value || "").replace(/\u00a0/g, " ").trim();
     if (!article) return "Не заполнен артикул";
@@ -149,11 +188,11 @@ class SupplierOrderService {
   }
 
   static get ORDER_HEADERS() {
-    return ["ID", "Номер", "Поставщик", "Статус", "Создано", "Обновлено", "Сумма", "Позиций", "Номер счёта"];
+    return ["ID", "Номер", "Поставщик", "Статус", "Создано", "Обновлено", "Сумма", "Позиций", "Номер счёта", "Общая дата поставки"];
   }
 
   static get LINE_HEADERS() {
-    return ["ID", "ID заказа поставщика", "ID материала", "Договор", "Клиент", "Изделие", "Артикул", "Наименование", "Количество", "Единица", "Цена", "Сумма"];
+    return ["ID", "ID заказа поставщика", "ID материала", "Договор", "Клиент", "Изделие", "Артикул", "Наименование", "Количество", "Единица", "Цена", "Сумма", "Индивидуальная дата поставки"];
   }
 
   static ensureOrdersSheet() {
@@ -187,10 +226,13 @@ class SupplierOrderService {
     const linesSheet = SheetService.getSpreadsheet().getSheetByName(CONFIG.SHEETS.SUPPLIER_ORDER_LINES);
     const productsByOrderId = {};
     const articleIssuesByOrderId = {};
+    const datesByOrderId = {};
     if (linesSheet && linesSheet.getLastRow() >= 2) {
       linesSheet.getDataRange().getValues().slice(1).forEach(line => {
         const orderId = String(line[1] || "").trim();
         if (orderId && this.articleProblem(line[6])) articleIssuesByOrderId[orderId] = (articleIssuesByOrderId[orderId] || 0) + 1;
+        if (!datesByOrderId[orderId]) datesByOrderId[orderId] = [];
+        datesByOrderId[orderId].push(this.deliveryDate(line[12]));
         const product = [line[3], line[4], line[5]].map(value => String(value || "").trim()).filter(Boolean).join(" · ");
         if (!orderId || !product) return;
         if (!productsByOrderId[orderId]) productsByOrderId[orderId] = new Set();
@@ -201,6 +243,9 @@ class SupplierOrderService {
       id: String(row[0]), number: String(row[1]), supplier: String(row[2]), status: String(row[3] || "Сформирован"),
       createdAt: row[4], updatedAt: row[5], total: row[6], lineCount: Number(row[7] || 0),
       invoiceNumbers: String(row[8] || ""),
+      defaultDeliveryDate: this.deliveryDate(row[9]),
+      deliveryDate: (datesByOrderId[String(row[0])] || []).map(date => date || this.deliveryDate(row[9])).filter(Boolean).sort().pop() || "",
+      deliveryDateMissingCount: (datesByOrderId[String(row[0])] || []).filter(date => !date && !this.deliveryDate(row[9])).length,
       articleIssueCount: articleIssuesByOrderId[String(row[0])] || 0,
       products: [...(productsByOrderId[String(row[0])] || [])].sort((left, right) => left.localeCompare(right, "ru"))
     })).sort((left, right) => new Date(right.createdAt || 0) - new Date(left.createdAt || 0));
@@ -442,7 +487,7 @@ class SupplierOrderService {
         const row = item.row;
         const orderAmount = this.getSupplyOrderAmount(row); const quantity = orderAmount.quantity;
         const price = row[9] === "" || row[9] === null ? NaN : Number(row[9]);
-        return [Utilities.getUuid(), orderId, String(row[0]), row[1], row[2], row[3], row[4], row[5], quantity, orderAmount.unit, Number.isFinite(price) ? price : "", Number.isFinite(price) ? quantity * price : ""];
+        return [Utilities.getUuid(), orderId, String(row[0]), row[1], row[2], row[3], row[4], row[5], quantity, orderAmount.unit, Number.isFinite(price) ? price : "", Number.isFinite(price) ? quantity * price : "", ""];
       });
       ordersSheet.appendRow([orderId, number, selectedSupplier, this.ORDER_STATUSES[0], now, now, hasUnknownPrice ? "" : total, lineRows.length, ""]);
       lineSheet.getRange(lineSheet.getLastRow() + 1, 1, lineRows.length, this.LINE_HEADERS.length).setValues(lineRows);
@@ -484,7 +529,7 @@ class SupplierOrderService {
         const row = item.row;
         const orderAmount = this.getSupplyOrderAmount(row); const quantity = orderAmount.quantity;
         const price = row[9] === "" || row[9] === null ? NaN : Number(row[9]);
-        return [Utilities.getUuid(), id, String(row[0]), row[1], row[2], row[3], row[4], row[5], quantity, orderAmount.unit, Number.isFinite(price) ? price : "", Number.isFinite(price) ? quantity * price : ""];
+        return [Utilities.getUuid(), id, String(row[0]), row[1], row[2], row[3], row[4], row[5], quantity, orderAmount.unit, Number.isFinite(price) ? price : "", Number.isFinite(price) ? quantity * price : "", ""];
       });
       lineSheet.getRange(lineSheet.getLastRow() + 1, 1, lineRows.length, this.LINE_HEADERS.length).setValues(lineRows);
       const now = new Date();
@@ -629,10 +674,10 @@ class SupplierOrderService {
     if (!order) throw new Error("Заказ поставщику не найден.");
     const lines = this.ensureLinesSheet().getDataRange().getValues().slice(1)
       .filter(row => String(row[1]) === id)
-      .map(row => ({ lineId: String(row[0]), materialId: String(row[2]), contract: row[3], client: row[4], product: row[5], article: row[6], name: row[7], quantity: Number(row[8] || 0), unit: row[9], price: row[10], total: row[11] }));
+      .map(row => ({ lineId: String(row[0]), materialId: String(row[2]), contract: row[3], client: row[4], product: row[5], article: row[6], name: row[7], quantity: Number(row[8] || 0), unit: row[9], price: row[10], total: row[11], deliveryDateOverride: this.deliveryDate(row[12]), deliveryDate: this.deliveryDate(row[12]) || order.defaultDeliveryDate }));
     const grouped = {};
     lines.forEach(line => {
-      const key = [line.article, line.name, line.unit, line.price].join("|");
+      const key = [line.article, line.name, line.unit, line.price, line.deliveryDateOverride].join("|");
       if (!grouped[key]) grouped[key] = Object.assign({}, line, { sourceCount: 0, lineIds: [] });
       else grouped[key].quantity += line.quantity;
       grouped[key].sourceCount++;

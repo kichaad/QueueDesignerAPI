@@ -115,11 +115,11 @@ class SupplierOrdersView {
         }
         const statuses = Store.state.dictionaries?.supplierOrderStatuses || [];
         container.innerHTML = `<div class="block">
-            <div class="table-wrap"><table class="supplier-orders-table"><thead><tr><th>Номер</th><th>Создан</th><th>Поставщик</th><th>Статус</th><th>Номер счёта</th><th>Изделия</th><th>Позиций</th><th>Сумма</th><th>Действия</th></tr></thead><tbody>${rows.map(order => `<tr class="${order.articleIssueCount ? "supplier-order-article-warning" : ""}">
+            <div class="table-wrap"><table class="supplier-orders-table"><thead><tr><th>Номер</th><th>Создан</th><th>Поставщик</th><th>Статус</th><th>Номер счёта</th><th>Дата поставки</th><th>Изделия</th><th>Позиций</th><th>Сумма</th><th>Действия</th></tr></thead><tbody>${rows.map(order => `<tr class="${order.articleIssueCount ? "supplier-order-article-warning" : ""}">
                 <td>${this.escape(order.number)}${order.articleIssueCount ? `<small class="article-warning-label">⚠ Проблемы с артикулами: ${order.articleIssueCount}</small>` : ""}</td><td>${this.escape(QueueView.formatDeadline(order.createdAt))}</td><td>${this.escape(order.supplier)}</td>
                 <td><select data-supplier-order-status="${this.escape(order.id)}">${statuses.map(status => `<option value="${this.escape(status)}"${status === order.status ? " selected" : ""}>${this.escape(status)}</option>`).join("")}</select></td>
                 <td><textarea class="supplier-order-invoice-numbers" rows="2" data-supplier-order-invoice-numbers="${this.escape(order.id)}" aria-label="Номер счёта для заказа ${this.escape(order.number)}">${this.escape(order.invoiceNumbers || "")}</textarea></td>
-                <td class="supplier-order-products-cell">${(order.products || []).length ? `<div class="supplier-order-products-list">${order.products.map(product => `<span>${this.escape(product)}</span>`).join("")}</div>` : "—"}</td>
+                <td>${this.escape(order.deliveryDate ? order.deliveryDate.split("-").reverse().join(".") : "—")}${order.deliveryDateMissingCount ? `<small class="article-warning-label">Без даты: ${order.deliveryDateMissingCount}</small>` : ""}</td><td class="supplier-order-products-cell">${(order.products || []).length ? `<div class="supplier-order-products-list">${order.products.map(product => `<span>${this.escape(product)}</span>`).join("")}</div>` : "—"}</td>
                 <td>${this.escape(order.lineCount)}</td><td>${this.formatMoney(order.total)}</td><td><button class="reset-btn" data-supplier-order-invoice="${this.escape(order.id)}">Прикрепить счёт</button><button class="reset-btn" data-supplier-order-details="${this.escape(order.id)}">Состав</button></td>
             </tr>`).join("")}</tbody></table></div></div>`;
         container.querySelectorAll("[data-supplier-order-status]").forEach(select => {
@@ -318,6 +318,7 @@ class SupplierOrdersView {
         if (!data) return;
         const availableLineIds = new Set((data.detailedLines || []).map(line => line.lineId));
         this.selectedLineIds = new Set([...this.selectedLineIds].filter(lineId => availableLineIds.has(lineId)));
+        const deliveryEditable = ["Счёт получен", "Счет получен", "Выгружен", "Оплачен", "Товар получен"].includes(data.order.status);
         const lines = this.aggregateDetails ? data.lines : (data.detailedLines || []);
         const editable = this.isEditable;
         const exportButton = `<button class="reset-btn" id="supplierOrderExportExcel">⇩ Скачать Excel</button>`;
@@ -332,6 +333,7 @@ class SupplierOrdersView {
             <button class="reset-btn" id="supplierOrderAddMaterials">＋ Добавить материалы</button>
             ${batchActions}
         </div>` : `<div class="supplier-order-details-note">${exportButton}${invoiceButton}<span>Состав зафиксирован. Артикулы можно исправлять; количество и состав недоступны для изменения.</span></div>`;
+        const deliveryToolbar = deliveryEditable ? `<div class="supplier-order-delivery-toolbar"><label>Общая дата поставки <input type="date" id="supplierOrderDeliveryDate" value="${this.escape(data.order.defaultDeliveryDate)}"></label><button class="reset-btn" id="saveSupplierOrderDeliveryDate">Сохранить общую дату</button><span>Индивидуальная дата заменяет общую. Очистите её, чтобы использовать общую дату.</span><label><input type="checkbox" id="supplierOrderDeliveryAggregate"${this.aggregateDetails ? " checked" : ""}> Объединить одинаковые материалы</label></div>` : "";
         const detailColumn = this.aggregateDetails ? "Изделий" : "Изделие";
         const actionsColumn = editable ? "<th>Действия</th>" : "";
         const rows = lines.map((line, index) => {
@@ -341,12 +343,25 @@ class SupplierOrdersView {
             const lineIds = this.aggregateDetails ? line.lineIds : [line.lineId];
             const actions = editable ? `<td class="supplier-order-line-actions">${!this.aggregateDetails ? `<button class="reset-btn" data-order-line-save="${this.escape(line.lineId)}">Сохранить</button>` : ""}<button class="reset-btn supplier-order-line-remove" data-order-line-remove="${this.escape(lineIds.join(","))}">Удалить</button></td>` : "";
             const selection = editable && !this.aggregateDetails ? `<td><input type="checkbox" data-order-line-select="${this.escape(line.lineId)}"${this.selectedLineIds.has(line.lineId) ? " checked" : ""}></td>` : "";
-            return `<tr>${selection}<td><div class="article-edit-controls"><input type="text" data-detail-article="${index}" value="${this.escape(line.article || "")}" aria-label="Артикул ${this.escape(line.name)}"><button class="reset-btn" data-detail-article-save="${index}">Сохранить артикул</button></div></td><td>${this.escape(line.name)}</td><td>${quantity}</td><td>${unit}</td><td>${this.formatMoney(line.price)}</td><td>${this.formatMoney(line.total)}</td><td>${detail}</td>${actions}</tr>`;
+            return `<tr>${selection}<td><div class="article-edit-controls"><input type="text" data-detail-article="${index}" value="${this.escape(line.article || "")}" aria-label="Артикул ${this.escape(line.name)}"><button class="reset-btn" data-detail-article-save="${index}">Сохранить артикул</button></div></td><td>${this.escape(line.name)}</td><td>${quantity}</td><td>${unit}</td><td>${this.formatMoney(line.price)}</td><td>${this.formatMoney(line.total)}</td><td>${detail}</td><td>${deliveryEditable ? `<input type="date" data-line-delivery="${index}" value="${this.escape(line.deliveryDateOverride)}" aria-label="Дата поставки ${this.escape(line.name)}"><small>${line.deliveryDateOverride ? "Индивидуальная" : "Общая: " + (data.order.defaultDeliveryDate ? data.order.defaultDeliveryDate.split("-").reverse().join(".") : "не задана")}</small><button class="reset-btn" data-save-line-delivery="${index}">Сохранить дату</button>` : "—"}</td>${actions}</tr>`;
         }).join("");
         const selectionHeader = editable && !this.aggregateDetails ? `<th><input type="checkbox" id="supplierOrderSelectAll"${lines.length && selectedCount === lines.length ? " checked" : ""}></th>` : "";
         document.getElementById("supplierOrderDetailsTitle").textContent = `${data.order.number} · ${data.order.supplier}`;
-        document.getElementById("supplierOrderDetailsContent").innerHTML = `${toolbar}${this.renderAddPanel()}<table><thead><tr>${selectionHeader}<th>Артикул</th><th>Наименование</th><th>Кол-во</th><th>Ед.</th><th>Цена</th><th>Сумма</th><th>${detailColumn}</th>${actionsColumn}</tr></thead><tbody>${rows || "<tr><td colspan=\"9\">В заказе нет позиций.</td></tr>"}</tbody></table>`;
+        document.getElementById("supplierOrderDetailsContent").innerHTML = `${toolbar}${deliveryToolbar}${this.renderAddPanel()}<table><thead><tr>${selectionHeader}<th>Артикул</th><th>Наименование</th><th>Кол-во</th><th>Ед.</th><th>Цена</th><th>Сумма</th><th>${detailColumn}</th><th>Дата поставки</th>${actionsColumn}</tr></thead><tbody>${rows || "<tr><td colspan=\"9\">В заказе нет позиций.</td></tr>"}</tbody></table>`;
         this.bindDetailControls();
+        const deliveryAggregate = document.getElementById("supplierOrderDeliveryAggregate");
+        if (deliveryAggregate) deliveryAggregate.onchange = () => { this.aggregateDetails = deliveryAggregate.checked; this.renderDetails(); };
+        const saveDelivery = async (button, payload) => {
+            button.disabled = true;
+            try { await QueueController.saveSupplierOrderDeliveryDates(data.order.id, payload); this.refreshDetails(); }
+            catch (error) { QueueView.showMessage(error); button.disabled = false; }
+        };
+        const saveDefault = document.getElementById("saveSupplierOrderDeliveryDate");
+        if (saveDefault) saveDefault.onclick = () => saveDelivery(saveDefault, { date: document.getElementById("supplierOrderDeliveryDate").value });
+        document.querySelectorAll("[data-save-line-delivery]").forEach(button => button.onclick = () => {
+            const index = Number(button.dataset.saveLineDelivery);
+            saveDelivery(button, { lineIds: lines[index].lineIds || [lines[index].lineId], date: document.querySelector(`[data-line-delivery="${index}"]`).value });
+        });
         document.querySelectorAll("[data-detail-article-save]").forEach(button => button.onclick = async () => {
             const index = Number(button.dataset.detailArticleSave);
             const line = lines[index];

@@ -323,6 +323,11 @@ function createSupplierOrder(supplier, rowIds) {
 function getSupplierOrderDetails(orderId) {
   return SupplierOrderService.getOrderDetails(orderId);
 }
+function saveSupplierOrderDeliveryDates(orderId, payload, clientVersion) {
+  assertClientAppVersion(clientVersion);
+  const result = SupplierOrderService.saveDeliveryDates(orderId, payload);
+  return { result: result, snapshot: SupplierOrderService.getSnapshot(), appVersion: CONFIG.APP_VERSION };
+}
 function setSupplierOrderLineArticle(orderId, lineIds, article, expectedArticle, clientVersion) {
   assertClientAppVersion(clientVersion);
   const result = SupplierOrderService.setLineArticle(orderId, lineIds, article, expectedArticle);

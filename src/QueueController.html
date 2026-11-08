@@ -329,6 +329,13 @@ static setSelectedUser(user) {
         return this.runQueueAction(ApiClient.createSupplierOrder(supplier, rowIds));
     }
 
+    static saveSupplierOrderDeliveryDates(orderId, payload) {
+        return ApiClient.saveSupplierOrderDeliveryDates(orderId, payload).then(response => {
+            if (Store.getRole() === "supplierOrders") return this.applyActionSnapshot(response);
+            return response.result;
+        });
+    }
+
     static getSupplierOrderDetails(orderId) {
         return ApiClient.getSupplierOrderDetails(orderId);
     }
