@@ -258,6 +258,7 @@ class ApiClient {
     }
 
     static getManualRequestOrderDirectory() { return this.run("getManualRequestOrderDirectory"); }
+    static getManualRequestChoices() { return this.run("getManualRequestChoices"); }
     static saveManualSupplyRequest(data) { return this.run("saveManualSupplyRequest", data); }
 
     static clearSupplyOrderMaterials(orderKey) {

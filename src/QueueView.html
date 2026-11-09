@@ -2222,7 +2222,7 @@ static exportCurrentListExcel(button) {
         return request(role === "supplyRequests" ? "supplyRequests" : "supply", SupplyView.getFilteredItems(this.orders).map((item, index) => ({
             ...baseRow(item, index), article: value(item.article), name: value(item.name), quantity: value(item.quantity),
             unit: value(item.unit), purchase: Number(item.purchaseQuantity) > 0 && item.purchaseUnit ? `${item.purchaseQuantity} · ${item.purchaseUnit}` : "—",
-            supplier: value(item.supplier), price: item.price === "" || item.price == null ? "—" : Number(item.price).toLocaleString("ru-RU", { maximumFractionDigits: 2 }), status: value(item.purchaseStatus)
+            supplier: value(item.supplier), price: item.price === "" || item.price == null ? "—" : Number(item.price).toLocaleString("ru-RU", { maximumFractionDigits: 2 }), status: value(item.purchaseStatus), comment: value(item.requestComment)
         })));
     }
     if (role === "plate") {

@@ -303,6 +303,7 @@ function getSupplyOrderDirectory() {
 }
 
 function getManualRequestOrderDirectory() { return SupplyService.getManualRequestOrderDirectory(); }
+function getManualRequestChoices() { return { orders: SupplyService.getManualRequestOrderDirectory(), clients: EquipmentService.getClients() }; }
 
 function saveManualSupplyRequest(data) {
   const result = SupplyService.saveManualRequest(data);

@@ -318,6 +318,7 @@ static setSelectedUser(user) {
     }
 
     static getManualRequestOrderDirectory() { return ApiClient.getManualRequestOrderDirectory(); }
+    static getManualRequestChoices() { return ApiClient.getManualRequestChoices(); }
     static saveManualSupplyRequest(data) { return this.runQueueAction(ApiClient.saveManualSupplyRequest(data)); }
 
     static clearSupplyOrderMaterials(orderKey) {

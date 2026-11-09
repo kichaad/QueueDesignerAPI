@@ -8,7 +8,7 @@ class SupplyService {
       "Количество", "Единица", "Поставщик", "Цена", "Статус закупки",
       "Поставщик вручную", "Файл источника", "Обновлено", "Способ сопоставления", "Производитель", "Ссылка поставщика", "Категория",
       "Лист источника", "Строка заголовка", "Поставщик источника", "Версия импорта", "Исключено из версии",
-      "Закупочное количество", "Единица закупки", "Статус сопоставления", "Источник позиции"
+      "Закупочное количество", "Единица закупки", "Статус сопоставления", "Источник позиции", "Комментарий заявки"
     ];
   }
 
@@ -158,7 +158,7 @@ class SupplyService {
       supplierManual: row[11] === true, sourceFile: row[12], updatedAt: row[13],
       matchMethod: row[14], manufacturer: row[15] || "", productUrl: row[16] || "", category: row[17] || "",
       purchaseQuantity: row[23] === "" || row[23] === null ? "" : Number(row[23]), purchaseUnit: row[24] || "", matchStatus: row[25] || "",
-      excludedFromVersion: String(row[22] || "") === "Да", manualRequest: String(row[26] || "") === "Ручная заявка"
+      excludedFromVersion: String(row[22] || "") === "Да", manualRequest: String(row[26] || "") === "Ручная заявка", requestComment: String(row[27] || "")
     }));
     // Для ручного выбора показываем реестр поставщиков, даже если у него ещё
     // нет позиций в очереди. «Расходники» — системный вариант выбора.
@@ -289,6 +289,8 @@ class SupplyService {
     const name = String(input.name || "").trim();
     const article = String(input.article || "").trim();
     const unit = String(input.unit || "").trim();
+    const comment = String(input.comment || "").trim();
+    const selectedClient = String(input.client || "").trim();
     const rawQuantity = String(input.quantity == null ? "" : input.quantity).trim();
     const quantity = rawQuantity ? Number(rawQuantity.replace(",", ".")) : "";
     if (!name) throw new Error("Укажите наименование.");
@@ -301,17 +303,24 @@ class SupplyService {
       if (input.rowId) {
         const row = this.findRow(sheet, input.rowId);
         if (String(sheet.getRange(row, 27).getValue() || "") !== "Ручная заявка") throw new Error("Можно изменять только ручные заявки.");
+        const hasProduct = Boolean(String(sheet.getRange(row, 4).getValue() || "").trim());
+        const previousClient = String(sheet.getRange(row, 3).getValue() || "").trim();
+        if (!hasProduct && selectedClient && selectedClient !== previousClient && !EquipmentService.getClients().includes(selectedClient)) throw new Error("Выбранный клиент не найден.");
         sheet.getRange(row, 5, 1, 4).setValues([[article, name, quantity, unit]]);
+        if (!hasProduct) sheet.getRange(row, 3).setValue(selectedClient);
+        sheet.getRange(row, 28).setValue(comment);
         sheet.getRange(row, 14).setValue(new Date());
         return { rowId: String(input.rowId) };
       }
       const order = key ? this.getManualRequestOrderDirectory().find(item => item.key === key) : null;
       if (key && !order) throw new Error("Выбранное изделие не найдено.");
+      if (!order && selectedClient && !EquipmentService.getClients().includes(selectedClient)) throw new Error("Выбранный клиент не найден.");
       const row = Array(this.HEADERS.length).fill("");
       row[0] = Utilities.getUuid();
       if (order) { row[1] = order.contract; row[2] = order.client; row[3] = order.product; }
+      else row[2] = selectedClient;
       row[4] = article; row[5] = name; row[6] = quantity; row[7] = unit;
-      row[10] = "Новый"; row[13] = new Date(); row[26] = "Ручная заявка";
+      row[10] = "Новый"; row[13] = new Date(); row[26] = "Ручная заявка"; row[27] = comment;
       sheet.getRange(sheet.getLastRow() + 1, 1, 1, row.length).setValues([row]);
       return { rowId: row[0] };
     } finally { lock.releaseLock(); }
@@ -449,7 +458,7 @@ class SupplyService {
           material.productUrl,
           material.category,
           material.sourceSheet || "", material.sourceHeaderRow || "", material.sourceSupplier || "", importVersion, "",
-          Number.isFinite(material.purchaseQuantity) && material.purchaseQuantity > 0 ? material.purchaseQuantity : "", material.purchaseUnit || "", material.matchStatus || "", ""
+          Number.isFinite(material.purchaseQuantity) && material.purchaseQuantity > 0 ? material.purchaseQuantity : "", material.purchaseUnit || "", material.matchStatus || "", "", ""
         ];
       });
       const keep = rows.slice(1).filter(row => {

@@ -247,10 +247,12 @@
         <div class="modal-content">
             <h2 id="supplyRequestTitle">Новая позиция снабжения</h2>
             <div class="form-row"><label for="supplyRequestOrder">Изделие</label><select id="supplyRequestOrder"><option value="">Без заказа</option></select></div>
+            <div class="form-row"><label for="supplyRequestClient">Клиент (необязательно)</label><select id="supplyRequestClient"><option value="">Не выбран</option></select></div>
             <div class="form-row"><label for="supplyRequestArticle">Артикул (необязательно)</label><input id="supplyRequestArticle"></div>
             <div class="form-row"><label for="supplyRequestName">Наименование</label><input id="supplyRequestName"></div>
             <div class="form-row"><label for="supplyRequestQuantity">Количество</label><input id="supplyRequestQuantity" type="number" min="0.001" step="any"></div>
             <div class="form-row"><label for="supplyRequestUnit">Единица измерения</label><input id="supplyRequestUnit"></div>
+            <div class="form-row"><label for="supplyRequestComment">Комментарий</label><textarea id="supplyRequestComment" rows="3"></textarea></div>
             <div class="modal-actions"><button type="button" class="reset-btn" id="cancelSupplyRequest">Отмена</button><button type="button" class="reset-btn" id="saveSupplyRequest">Сохранить</button></div>
         </div>
     </div>
