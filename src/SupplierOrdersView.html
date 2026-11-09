@@ -100,6 +100,7 @@ class SupplierOrdersView {
         this.toggle(true);
         this.initFilters(items);
         const rows = this.getFilteredItems(items);
+        this.renderUnpaidTotal(rows);
         const total = document.getElementById("totalOrders");
         if (total) total.textContent = `Заказов: ${rows.length}`;
         const container = document.getElementById("ordersContainer");
@@ -122,7 +123,7 @@ class SupplierOrdersView {
                     const parts = String(product).split(" · ");
                     return `<div class="supplier-order-product-summary"><strong>${this.escape(parts.shift())}</strong>${parts.length ? `<span>${this.escape(parts.join(" · "))}</span>` : ""}</div>`;
                 }).join("")}</div>` : "—"}</td>
-                <td data-label="Позиций" class="supplier-order-count">${this.escape(order.lineCount)}</td><td data-label="Сумма" class="supplier-order-total"><input class="supplier-order-total-input" type="text" inputmode="decimal" value="${this.escape(order.total == null || order.total === "" ? "" : order.total)}" placeholder="—" aria-label="Сумма заказа ${this.escape(order.number)}" title="Измените сумму; пустое поле вернёт расчёт по позициям" data-supplier-order-total="${this.escape(order.id)}"></td>
+                <td data-label="Позиций" class="supplier-order-count">${this.escape(order.lineCount)}</td><td data-label="Сумма" class="supplier-order-total"><input class="supplier-order-total-input" type="text" inputmode="decimal" value="${this.escape(this.formatEditableTotal(order.total))}" placeholder="—" aria-label="Сумма заказа ${this.escape(order.number)}" title="Измените сумму; пустое поле вернёт расчёт по позициям" data-supplier-order-total="${this.escape(order.id)}"></td>
                 <td data-label="Действия" class="supplier-order-actions"><button class="reset-btn" data-supplier-order-invoice="${this.escape(order.id)}">Прикрепить<br>счёт</button><button class="reset-btn" data-supplier-order-details="${this.escape(order.id)}">Состав</button></td>
             </tr>`).join("")}</tbody></table></div></div>`;
         container.querySelectorAll("[data-supplier-order-status]").forEach(select => {
@@ -137,6 +138,11 @@ class SupplierOrdersView {
             };
         });
         container.querySelectorAll("[data-supplier-order-total]").forEach(input => {
+            input.onfocus = () => { input.value = input.value.replace(/\s/g, ""); };
+            input.onblur = () => {
+                const raw = input.value.trim().replace(/\s/g, "").replace(",", ".");
+                if (raw && Number.isFinite(Number(raw)) && Number(raw) >= 0) input.value = this.formatEditableTotal(Number(raw));
+            };
             input.onchange = () => {
                 input.disabled = true;
                 QueueController.saveSupplierOrderTotal(input.dataset.supplierOrderTotal, input.value)
@@ -149,6 +155,25 @@ class SupplierOrdersView {
         container.querySelectorAll("[data-supplier-order-details]").forEach(button => {
             button.onclick = () => this.openDetails(button.dataset.supplierOrderDetails);
         });
+    }
+
+    static renderUnpaidTotal(rows) {
+        const output = document.getElementById("supplierOrdersUnpaidTotal");
+        if (!output) return;
+        const unpaid = (rows || []).filter(order => ["Сформирован", "Счёт получен", "Счет получен", "Выгружен"].includes(String(order.status || "").trim()));
+        let sum = 0, missing = 0;
+        unpaid.forEach(order => {
+            if (order.total === "" || order.total == null || !Number.isFinite(Number(order.total))) missing += 1;
+            else sum += Number(order.total);
+        });
+        output.textContent = `Итого не оплачено: ${this.formatMoney(sum)}${missing ? ` · Без суммы: ${missing}` : ""}`;
+    }
+
+    static formatEditableTotal(value) {
+        if (value === "" || value == null) return "";
+        const number = Number(value);
+        if (!Number.isFinite(number)) return String(value);
+        return number.toLocaleString("ru-RU", { minimumFractionDigits: Number.isInteger(number) ? 0 : 2, maximumFractionDigits: 20 }).replace(/[\u00a0\u202f]/g, " ");
     }
 
     static mdmFile = null;
@@ -636,7 +661,9 @@ class SupplierOrdersView {
     }
 
     static formatMoney(value) {
-        return value === "" || value === null || value === undefined ? "—" : Number(value).toLocaleString("ru-RU", { maximumFractionDigits: 2 }) + " ₽";
+        if (value === "" || value === null || value === undefined) return "—";
+        const number = Number(value);
+        return number.toLocaleString("ru-RU", { minimumFractionDigits: Number.isInteger(number) ? 0 : 2, maximumFractionDigits: 2 }).replace(/[\u00a0\u202f]/g, " ") + " ₽";
     }
 
     static escape(value) {

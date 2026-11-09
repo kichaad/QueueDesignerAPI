@@ -2683,11 +2683,13 @@ table {
 .supplier-orders-section-active .subtitle { display: none; }
 .supplier-orders-section-active .header { margin-bottom: 8px; }
 .supplier-orders-section-active #supplierOrdersToolbar { gap: 6px; margin-bottom: 8px; }
+.supplier-orders-unpaid-total { margin-left: auto; padding: 6px 10px; color: #0f172a; font-size: 13px; font-weight: 700; white-space: normal; }
 .supplier-orders-section-active #supplierOrdersToolbar .reset-btn,
 .supplier-orders-section-active #supplierOrdersToolbar select { padding: 6px 10px; font-size: 12px; min-height: 30px; }
 .supplier-orders-section-active #supplierOrdersToolbar select { min-width: 180px; max-width: 100%; }
 @media (max-width: 700px) {
     .supplier-orders-section-active #supplierOrdersToolbar select { flex: 1 1 150px; min-width: 0; }
+    .supplier-orders-unpaid-total { flex-basis: 100%; margin-left: 0; text-align: right; }
 }
 
 .mdm-export-content { width: min(800px, calc(100vw - 32px)); max-width: min(800px, calc(100vw - 32px)); max-height: 85vh; overflow-y: auto; }
