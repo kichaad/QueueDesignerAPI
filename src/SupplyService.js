@@ -8,7 +8,7 @@ class SupplyService {
       "Количество", "Единица", "Поставщик", "Цена", "Статус закупки",
       "Поставщик вручную", "Файл источника", "Обновлено", "Способ сопоставления", "Производитель", "Ссылка поставщика", "Категория",
       "Лист источника", "Строка заголовка", "Поставщик источника", "Версия импорта", "Исключено из версии",
-      "Закупочное количество", "Единица закупки", "Статус сопоставления"
+      "Закупочное количество", "Единица закупки", "Статус сопоставления", "Источник позиции"
     ];
   }
 
@@ -61,11 +61,11 @@ class SupplyService {
       const columns = {
         contract: headers.indexOf("Договор"), client: headers.indexOf("Клиент"), product: headers.indexOf("Изделие"),
         supplier: headers.indexOf("Поставщик"), name: headers.indexOf("Наименование"), manufacturer: headers.indexOf("Производитель"),
-        category: headers.indexOf("Категория"), status: headers.indexOf("Статус закупки"), excluded: headers.indexOf("Исключено из версии")
+        category: headers.indexOf("Категория"), status: headers.indexOf("Статус закупки"), excluded: headers.indexOf("Исключено из версии"), origin: headers.indexOf("Источник позиции")
       };
-      if (Object.values(columns).every(index => index >= 0)) {
+      if (Object.entries(columns).every(([key, index]) => key === "origin" || index >= 0)) {
         rows.slice(1).forEach(row => {
-          if (String(row[columns.excluded] || "").trim() === "Да") return;
+          if (String(row[columns.excluded] || "").trim() === "Да" || (columns.origin >= 0 && String(row[columns.origin] || "") === "Ручная заявка")) return;
           addPosition(row, columns, (item, fields) => this.getMasterSupplyGroup({
             supplier: item[fields.supplier], name: item[fields.name], manufacturer: item[fields.manufacturer], category: item[fields.category]
           }));
@@ -158,7 +158,7 @@ class SupplyService {
       supplierManual: row[11] === true, sourceFile: row[12], updatedAt: row[13],
       matchMethod: row[14], manufacturer: row[15] || "", productUrl: row[16] || "", category: row[17] || "",
       purchaseQuantity: row[23] === "" || row[23] === null ? "" : Number(row[23]), purchaseUnit: row[24] || "", matchStatus: row[25] || "",
-      excludedFromVersion: String(row[22] || "") === "Да"
+      excludedFromVersion: String(row[22] || "") === "Да", manualRequest: String(row[26] || "") === "Ручная заявка"
     }));
     // Для ручного выбора показываем реестр поставщиков, даже если у него ещё
     // нет позиций в очереди. «Расходники» — системный вариант выбора.
@@ -270,6 +270,53 @@ class SupplyService {
     }));
   }
 
+  static getManualRequestOrderDirectory() {
+    const rows = SheetService.objectsFromRows(SheetService.getData(CONFIG.SHEETS.ORDERS));
+    const unique = new Map();
+    rows.forEach(row => {
+      const contract = String(row["Договор"] || "").trim();
+      const client = String(row["Клиент"] || "").trim();
+      const product = String(row["Изделие"] || "").trim();
+      if (!product || !client) return;
+      const key = [contract, client, product].join("|");
+      if (!unique.has(key)) unique.set(key, { key, contract, client, product });
+    });
+    return Array.from(unique.values()).sort((a, b) => a.key.localeCompare(b.key, "ru"));
+  }
+
+  static saveManualRequest(data) {
+    const input = data || {};
+    const name = String(input.name || "").trim();
+    const article = String(input.article || "").trim();
+    const unit = String(input.unit || "").trim();
+    const rawQuantity = String(input.quantity == null ? "" : input.quantity).trim();
+    const quantity = rawQuantity ? Number(rawQuantity.replace(",", ".")) : "";
+    if (!name) throw new Error("Укажите наименование.");
+    if (rawQuantity && (!Number.isFinite(quantity) || quantity <= 0)) throw new Error("Количество должно быть больше нуля.");
+    const key = String(input.orderKey || "");
+    const lock = LockService.getDocumentLock();
+    lock.waitLock(30000);
+    try {
+      const sheet = this.ensureSheet();
+      if (input.rowId) {
+        const row = this.findRow(sheet, input.rowId);
+        if (String(sheet.getRange(row, 27).getValue() || "") !== "Ручная заявка") throw new Error("Можно изменять только ручные заявки.");
+        sheet.getRange(row, 5, 1, 4).setValues([[article, name, quantity, unit]]);
+        sheet.getRange(row, 14).setValue(new Date());
+        return { rowId: String(input.rowId) };
+      }
+      const order = key ? this.getManualRequestOrderDirectory().find(item => item.key === key) : null;
+      if (key && !order) throw new Error("Выбранное изделие не найдено.");
+      const row = Array(this.HEADERS.length).fill("");
+      row[0] = Utilities.getUuid();
+      if (order) { row[1] = order.contract; row[2] = order.client; row[3] = order.product; }
+      row[4] = article; row[5] = name; row[6] = quantity; row[7] = unit;
+      row[10] = "Новый"; row[13] = new Date(); row[26] = "Ручная заявка";
+      sheet.getRange(sheet.getLastRow() + 1, 1, 1, row.length).setValues([row]);
+      return { rowId: row[0] };
+    } finally { lock.releaseLock(); }
+  }
+
   static getMaterialOrderDirectory() {
     const rows = this.ensureSheet().getDataRange().getValues().slice(1);
     const unique = {};
@@ -375,7 +422,7 @@ class SupplyService {
       const rows = sheet.getDataRange().getValues();
       const existing = {};
       rows.slice(1).forEach(row => {
-        if ([row[1], row[2], row[3]].join("|") !== order.key) return;
+        if ([row[1], row[2], row[3]].join("|") !== order.key || String(row[26] || "") === "Ручная заявка") return;
         existing[String(row[0])] = row;
       });
       const now = new Date();
@@ -402,12 +449,12 @@ class SupplyService {
           material.productUrl,
           material.category,
           material.sourceSheet || "", material.sourceHeaderRow || "", material.sourceSupplier || "", importVersion, "",
-          Number.isFinite(material.purchaseQuantity) && material.purchaseQuantity > 0 ? material.purchaseQuantity : "", material.purchaseUnit || "", material.matchStatus || ""
+          Number.isFinite(material.purchaseQuantity) && material.purchaseQuantity > 0 ? material.purchaseQuantity : "", material.purchaseUnit || "", material.matchStatus || "", ""
         ];
       });
       const keep = rows.slice(1).filter(row => {
         const sameOrder = [row[1], row[2], row[3]].join("|") === order.key;
-        if (!sameOrder || nextIds.has(String(row[0]))) return true;
+        if (!sameOrder || String(row[26] || "") === "Ручная заявка" || nextIds.has(String(row[0]))) return true;
         if (!orderedMaterialIds.has(String(row[0]))) return false;
         row[22] = "Да";
         row[13] = now;
@@ -987,6 +1034,7 @@ class SupplyService {
     const items = this.getSnapshot().orders;
     const unique = {};
     items.forEach(item => {
+      if (item.manualRequest) return;
       const key = this.normalizeArticle(item.article) || this.normalizeName(item.name);
       if (item.supplier || !key) return;
       const route = this.getMaterialRoute(item, routes);
@@ -1010,6 +1058,7 @@ class SupplyService {
     const values = supply.getDataRange().getValues();
     const selected = new Set(names.map(name => this.normalizeName(name)));
     values.slice(1).forEach((row, index) => {
+      if (String(row[26] || "") === "Ручная заявка") return;
       if (!selected.has(this.normalizeName(row[5]))) return;
       const rowNumber = index + 2;
       supply.getRange(rowNumber, 9).setValue("Расходники");
@@ -1093,6 +1142,7 @@ class SupplyService {
       const now = new Date();
 
       values.slice(1).forEach(row => {
+        if (String(row[26] || "") === "Ручная заявка") return;
         const supplier = String(row[8] || "").trim();
         const isConsumable = row[17] === "Расходники" || supplier === "Расходники";
         // Ручной выбор всегда имеет приоритет над автоматическим поиском.
@@ -1830,13 +1880,13 @@ class SupplyService {
     let removedSupply = 0;
     try {
       const rows = sheet.getDataRange().getValues();
-      const orderRows = rows.slice(1).filter(row => [row[1], row[2], row[3]].join("|") === order.key);
+      const orderRows = rows.slice(1).filter(row => [row[1], row[2], row[3]].join("|") === order.key && String(row[26] || "") !== "Ручная заявка");
       const orderedIds = new Set(SupplierOrderService.getOrderedMaterialIds());
       if (orderRows.some(row => orderedIds.has(String(row[0])))) {
         throw new Error("Нельзя очистить материалы: часть позиций уже включена в заказ поставщику. Сначала исключите их из заказа поставщику.");
       }
       removedSupply = orderRows.length;
-      const remaining = rows.slice(1).filter(row => [row[1], row[2], row[3]].join("|") !== order.key);
+      const remaining = rows.slice(1).filter(row => [row[1], row[2], row[3]].join("|") !== order.key || String(row[26] || "") === "Ручная заявка");
       if (sheet.getLastRow() > 1) sheet.getRange(2, 1, sheet.getLastRow() - 1, this.HEADERS.length).clearContent();
       if (remaining.length) sheet.getRange(2, 1, remaining.length, this.HEADERS.length).setValues(remaining);
     } finally {

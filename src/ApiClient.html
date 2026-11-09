@@ -257,6 +257,9 @@ class ApiClient {
         return this.run("getSupplyOrderDirectory");
     }
 
+    static getManualRequestOrderDirectory() { return this.run("getManualRequestOrderDirectory"); }
+    static saveManualSupplyRequest(data) { return this.run("saveManualSupplyRequest", data); }
+
     static clearSupplyOrderMaterials(orderKey) {
         return this.run("clearSupplyOrderMaterials", orderKey);
     }

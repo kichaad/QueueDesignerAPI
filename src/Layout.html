@@ -119,6 +119,7 @@
 
             <div class="toggle-group hidden" id="supplyRoleTabs">
                 <button class="toggle-btn active" id="btnPurchase">Закупка</button>
+                <button class="toggle-btn" id="btnSupplyRequests">Снабжение</button>
                 <button class="toggle-btn" id="btnPlate">Плитный материал</button>
                 <button class="toggle-btn" id="btnSupplierOrders">Заказы поставщикам</button>
             </div>
@@ -221,6 +222,7 @@
     </div>
 
     <div id="supplyToolbar" class="supply-toolbar hidden">
+        <button class="reset-btn hidden" id="addSupplyRequestBtn">＋ Добавить позицию</button>
         <button class="reset-btn" id="importSupplyBtn">⬆ Импорт спецификации</button>
         <button class="reset-btn" id="clearSupplyOrderBtn">🗑 Очистить материалы заказа</button>
         <button class="reset-btn" id="supplierOrdersBtn">📋 Заказы поставщика</button>
@@ -239,6 +241,18 @@
             <option>Оплачено</option>
             <option>Товар получен</option>
         </select>
+    </div>
+
+    <div id="supplyRequestModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="supplyRequestTitle">
+        <div class="modal-content">
+            <h2 id="supplyRequestTitle">Новая позиция снабжения</h2>
+            <div class="form-row"><label for="supplyRequestOrder">Изделие</label><select id="supplyRequestOrder"><option value="">Без заказа</option></select></div>
+            <div class="form-row"><label for="supplyRequestArticle">Артикул (необязательно)</label><input id="supplyRequestArticle"></div>
+            <div class="form-row"><label for="supplyRequestName">Наименование</label><input id="supplyRequestName"></div>
+            <div class="form-row"><label for="supplyRequestQuantity">Количество</label><input id="supplyRequestQuantity" type="number" min="0.001" step="any"></div>
+            <div class="form-row"><label for="supplyRequestUnit">Единица измерения</label><input id="supplyRequestUnit"></div>
+            <div class="modal-actions"><button type="button" class="reset-btn" id="cancelSupplyRequest">Отмена</button><button type="button" class="reset-btn" id="saveSupplyRequest">Сохранить</button></div>
+        </div>
     </div>
 
     <div id="supplierOrdersToolbar" class="supply-toolbar hidden">

@@ -114,13 +114,13 @@ EventBus.on("roleChanged", role => {
     document.body.classList.toggle("claims-section-active", isClaimsSection);
     const isSupplierOrdersSection = role === "supplierOrders";
     const isEquipmentInvoicesSection = role === "equipmentInvoices";
-    const isSupplySection = role === "purchase" || role === "plate" || isSupplierOrdersSection;
+    const isSupplySection = role === "purchase" || role === "supplyRequests" || role === "plate" || isSupplierOrdersSection;
     const isEquipmentSection = role === "equipment" || isEquipmentInvoicesSection;
     const isTabletopSection = role === "tabletops";
     document.body.classList.toggle("malarka-section-active", isPaintingSection);
     document.body.classList.toggle("master-section-active", role === "master");
     document.body.classList.toggle("manufacturing-section-active", isProductionSection);
-    SupplyView.toggle(role === "purchase" || role === "plate");
+    SupplyView.toggle(role === "purchase" || role === "supplyRequests" || role === "plate");
     SupplierOrdersView.toggle(isSupplierOrdersSection);
     EquipmentView.toggle(role === "equipment");
     EquipmentInvoicesView.toggle(isEquipmentInvoicesSection);
@@ -128,6 +128,7 @@ EventBus.on("roleChanged", role => {
     document.getElementById("addClaimBtn").classList.toggle("hidden", !isClaimsSection);
     if (isClaimsSection) document.getElementById("addOrderBtn").classList.add("hidden");
     PlateMaterialView.toggle(role === "plate");
+    if (role === "supplyRequests") document.getElementById("addOrderBtn").classList.add("hidden");
     if (isSupplierOrdersSection) this.initFilters(this.orders);
     document.getElementById("designRoleTabs").classList.toggle("hidden", isPaintingSection || isManufacturingSection || isSupplySection || isEquipmentSection || isTabletopSection || isClaimsSection);
     document.getElementById("productionRoleTabs").classList.toggle("hidden", !isPaintingSection);
@@ -165,6 +166,7 @@ EventBus.on("roleChanged", role => {
     const btnPlate = document.getElementById("btnPlate");
     const btnSupplierOrders = document.getElementById("btnSupplierOrders");
     if (btnPurchase) btnPurchase.classList.toggle("active", role === "purchase");
+    document.getElementById("btnSupplyRequests")?.classList.toggle("active", role === "supplyRequests");
     if (btnPlate) btnPlate.classList.toggle("active", role === "plate");
     if (btnSupplierOrders) btnSupplierOrders.classList.toggle("active", isSupplierOrdersSection);
     document.getElementById("sandingStaffBtn")?.classList.toggle("hidden", role !== "sanding");
@@ -172,7 +174,7 @@ EventBus.on("roleChanged", role => {
     document.getElementById("exportAllOrdersExcelBtn")?.classList.toggle("hidden", !isOrderQueueSection);
     document.getElementById("exportProductionExcelBtn")?.classList.toggle("hidden", !isProductionSection);
     document.getElementById("createBasisSpecificationBtn")?.classList.toggle("hidden", !isProductionSection);
-    const genericExcelRoles = ["constructor", "paintingAll", "processing", "sanding", "painting", "armSanding", "armPainting", "installation", "installationAll", "delivered", "claims", "purchase", "plate", "supplierOrders", "equipment", "equipmentInvoices", "tabletops"];
+    const genericExcelRoles = ["constructor", "paintingAll", "processing", "sanding", "painting", "armSanding", "armPainting", "installation", "installationAll", "delivered", "claims", "purchase", "supplyRequests", "plate", "supplierOrders", "equipment", "equipmentInvoices", "tabletops"];
     document.getElementById("exportCurrentListExcelBtn")?.classList.toggle("hidden", !genericExcelRoles.includes(role));
     if (role === "sanding") this.updateSandingStaffButton();
 
@@ -438,6 +440,7 @@ if (btnInstallationAll) btnInstallationAll.onclick = () => QueueController.setRo
 if (btnDelivered) btnDelivered.onclick = () => QueueController.setRole("delivered");
 if (btnAllOrders) btnAllOrders.onclick = () => QueueController.setRole("allOrders");
 if (btnPurchase) btnPurchase.onclick = () => QueueController.setRole("purchase");
+document.getElementById("btnSupplyRequests").onclick = () => QueueController.setRole("supplyRequests");
 if (btnPlate) btnPlate.onclick = () => QueueController.setRole("plate");
 if (btnSupplierOrders) btnSupplierOrders.onclick = () => QueueController.setRole("supplierOrders");
 if (sandingStaffBtn) sandingStaffBtn.onclick = () => this.openSandingStaff();
@@ -580,7 +583,7 @@ if(document.getElementById("constructorFilter")){
 
         static initFilters(orders) {
 
-if (Store.getRole() === "purchase") {
+if (Store.getRole() === "purchase" || Store.getRole() === "supplyRequests") {
     SupplyView.initFilters(orders);
     return;
 }
@@ -787,7 +790,7 @@ if (role === "sanding") this.updateSandingStaffButton();
 
    static getFilteredOrders(skipProductionFilters = false){
 
-    if (Store.getRole() === "purchase") return SupplyView.getFilteredItems(this.orders);
+    if (Store.getRole() === "purchase" || Store.getRole() === "supplyRequests") return SupplyView.getFilteredItems(this.orders);
     if (Store.getRole() === "plate") return PlateMaterialView.getFilteredItems(this.orders);
     if (Store.getRole() === "supplierOrders") return SupplierOrdersView.getFilteredItems(this.orders);
 
@@ -1187,7 +1190,7 @@ if (role === "sanding") this.updateSandingStaffButton();
 
     static render(){
 
-        if (Store.getRole() === "purchase") {
+        if (Store.getRole() === "purchase" || Store.getRole() === "supplyRequests") {
             SupplyView.render(this.orders);
             return;
         }
@@ -2169,7 +2172,7 @@ static getCurrentListExcelFilters(role) {
         constructor: "Конструкторы", paintingAll: "Все в покраске", processing: "Буфер",
         sanding: "Шлифовка", painting: "Покраска", armSanding: "АРМ шлифовщик",
         armPainting: "АРМ маляр", installationAll: "Все монтажи", installation: "Монтаж",
-        delivered: "Сданы", claims: "Рекламации", purchase: "Снабжение",
+        delivered: "Сданы", claims: "Рекламации", purchase: "Закупка", supplyRequests: "Снабжение",
         plate: "Плитный материал", supplierOrders: "Заказы поставщикам", equipment: "Техника",
         equipmentInvoices: "Счета техники", tabletops: "Столешницы"
     };
@@ -2215,8 +2218,8 @@ static exportCurrentListExcel(button) {
         product: value(order.product)
     });
 
-    if (role === "purchase") {
-        return request("supply", SupplyView.getFilteredItems(this.orders).map((item, index) => ({
+    if (role === "purchase" || role === "supplyRequests") {
+        return request(role === "supplyRequests" ? "supplyRequests" : "supply", SupplyView.getFilteredItems(this.orders).map((item, index) => ({
             ...baseRow(item, index), article: value(item.article), name: value(item.name), quantity: value(item.quantity),
             unit: value(item.unit), purchase: Number(item.purchaseQuantity) > 0 && item.purchaseUnit ? `${item.purchaseQuantity} · ${item.purchaseUnit}` : "—",
             supplier: value(item.supplier), price: item.price === "" || item.price == null ? "—" : Number(item.price).toLocaleString("ru-RU", { maximumFractionDigits: 2 }), status: value(item.purchaseStatus)

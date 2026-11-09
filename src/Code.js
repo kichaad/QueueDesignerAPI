@@ -302,6 +302,13 @@ function getSupplyOrderDirectory() {
   return SupplyService.getMaterialOrderDirectory();
 }
 
+function getManualRequestOrderDirectory() { return SupplyService.getManualRequestOrderDirectory(); }
+
+function saveManualSupplyRequest(data) {
+  const result = SupplyService.saveManualRequest(data);
+  return { result: result, snapshot: SupplyService.getSnapshot() };
+}
+
 function clearSupplyOrderMaterials(orderKey) {
   const result = SupplyService.clearOrderMaterials(orderKey);
   return { result: result, snapshot: SupplyService.getSnapshot() };

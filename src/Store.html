@@ -66,7 +66,7 @@ class Store {
         if (["installationAll", "installation", "delivered"].includes(currentRole)) return "installation";
         if (currentRole === "claims") return "claims";
         if (currentRole === "allOrders") return "order_queue";
-        if (currentRole === "purchase") return "supply";
+        if (currentRole === "purchase" || currentRole === "supplyRequests") return "supply";
         if (currentRole === "plate") return "plate";
         if (currentRole === "supplierOrders") return "supplier_orders";
         if (currentRole === "equipment") return "equipment";

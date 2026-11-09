@@ -423,7 +423,7 @@ class SupplierOrderService {
     const ordered = new Set(this.getOrderedMaterialIds());
     const candidates = supplySheet.getDataRange().getValues().slice(1).filter(row =>
       String(row[8] || "").trim() === selectedSupplier && String(row[10] || "Новый") === "Новый" &&
-      String(row[17] || "") !== "Расходники" && !ordered.has(String(row[0]))
+      String(row[17] || "") !== "Расходники" && String(row[26] || "") !== "Ручная заявка" && !ordered.has(String(row[0]))
     ).map(row => {
       const productKey = [row[1], row[2], row[3]].join("|");
       const orderAmount = this.getSupplyOrderAmount(row); const quantity = orderAmount.quantity; const price = row[9] === "" || row[9] === null ? "" : Number(row[9]);
@@ -472,6 +472,7 @@ class SupplierOrderService {
         .filter(item => String(item.row[8] || "").trim() === selectedSupplier)
         .filter(item => String(item.row[10] || "Новый") === "Новый")
         .filter(item => String(item.row[17] || "") !== "Расходники")
+        .filter(item => String(item.row[26] || "") !== "Ручная заявка")
         .filter(item => !alreadyOrdered.has(String(item.row[0])));
       const byId = new Map(candidates.map(item => [String(item.row[0]), item]));
       const selected = selectedIds.map(id => byId.get(id));
