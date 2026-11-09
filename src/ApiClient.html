@@ -245,6 +245,10 @@ class ApiClient {
         return this.run("setPurchaseStatus", rowId, status);
     }
 
+    static setSupplyArticle(rowId, article, expectedArticle) {
+        return this.run("setSupplyArticle", rowId, article, expectedArticle);
+    }
+
     static assignSupplySupplier(rowId, supplier) {
         return this.run("assignSupplySupplier", rowId, supplier);
     }

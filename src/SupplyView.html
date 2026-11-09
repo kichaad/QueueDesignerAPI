@@ -161,6 +161,17 @@ class SupplyView {
         container.querySelectorAll("[data-supply-supplier]").forEach(select => {
             select.onchange = () => this.assignSupplier(select.dataset.supplySupplier, select.value);
         });
+        container.querySelectorAll("[data-supply-article]").forEach(input => {
+            input.onchange = () => {
+                const previous = input.dataset.originalArticle;
+                const value = input.value.trim();
+                if (value === previous) { input.value = previous; return; }
+                input.disabled = true;
+                QueueController.setSupplyArticle(input.dataset.supplyArticle, value, previous)
+                    .catch(error => { input.value = previous; QueueView.showMessage(error); })
+                    .finally(() => { input.disabled = false; });
+            };
+        });
         container.querySelectorAll("[data-supply-delete]").forEach(button => {
             button.onclick = () => this.deleteMaterial(button.dataset.supplyDelete, button.dataset.supplyName);
         });
@@ -266,7 +277,7 @@ class SupplyView {
             <option value="">Не определён</option>${supplierOptions.map(supplier => `<option value="${this.escape(supplier)}"${supplier === item.supplier ? " selected" : ""}>${this.escape(supplier)}</option>`).join("")}</select>`;
         const statusSelect = `<select class="purchase-status-select" data-supply-status="${this.escape(item.rowId)}">${statuses.map(status => `<option${status === (item.purchaseStatus || "Новый") ? " selected" : ""}>${this.escape(status)}</option>`).join("")}</select>`;
         return `<tr class="${statusClass}${articleMatched ? " supply-article-matched" : ""}"><td>${index + 1}</td><td class="master-order-meta-cell"><strong>${this.escape(item.contract || "—")}</strong><span>${this.escape(item.client || "—")}</span></td><td>${this.escape(item.product)}</td><td>${this.escape(QueueView.formatDeadline(item.deadline))}</td>
-            <td>${this.escape(item.article || "—")}</td><td class="supply-name">${this.escape(item.name)}${matchWarning}${item.excludedFromVersion ? `<div class="supply-version-warning">Исключено из новой версии</div>` : ""}</td><td>${this.escape(item.quantity)}</td><td>${this.escape(item.unit)}</td><td>${purchaseDisplay}</td><td>${this.escape(item.manufacturer || "—")}</td>
+            <td><input type="text" data-supply-article="${this.escape(item.rowId)}" data-original-article="${this.escape(item.article || "")}" value="${this.escape(item.article || "")}" placeholder="—" aria-label="Артикул" title="Редактировать артикул" style="box-sizing:border-box;width:100%;min-width:75px"></td><td class="supply-name">${this.escape(item.name)}${matchWarning}${item.excludedFromVersion ? `<div class="supply-version-warning">Исключено из новой версии</div>` : ""}</td><td>${this.escape(item.quantity)}</td><td>${this.escape(item.unit)}</td><td>${purchaseDisplay}</td><td>${this.escape(item.manufacturer || "—")}</td>
             <td>${supplierSelect}${supplierLink}</td>
             <td>${price}</td><td>${statusSelect}</td>
             <td class="supply-actions"><button class="reset-btn supply-delete-btn" data-supply-delete="${this.escape(item.rowId)}" data-supply-name="${this.escape(item.name)}" title="Удалить материал">🗑</button></td></tr>`;

@@ -288,6 +288,11 @@ function setPurchaseStatus(rowId, status) {
   return { result: result, snapshot: SupplyService.getSnapshot() };
 }
 
+function setSupplyArticle(rowId, article, expectedArticle) {
+  const result = SupplyService.setArticle(rowId, article, expectedArticle);
+  return { result: result, snapshot: SupplyService.getSnapshot() };
+}
+
 function assignSupplySupplier(rowId, supplier) {
   const result = SupplyService.assignSupplier(rowId, supplier);
   return { result: result, snapshot: SupplyService.getSnapshot() };

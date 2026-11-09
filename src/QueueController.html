@@ -305,6 +305,10 @@ static setSelectedUser(user) {
         return this.runQueueAction(ApiClient.setPurchaseStatus(rowId, status));
     }
 
+    static setSupplyArticle(rowId, article, expectedArticle) {
+        return this.runQueueAction(ApiClient.setSupplyArticle(rowId, article, expectedArticle));
+    }
+
     static assignSupplySupplier(rowId, supplier) {
         return this.runQueueAction(ApiClient.assignSupplySupplier(rowId, supplier));
     }

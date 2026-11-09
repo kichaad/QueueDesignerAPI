@@ -99,6 +99,7 @@ class Api {
       saveSupplySpecification: saveSupplySpecification,
       changePurchaseStatus: changePurchaseStatus,
       setPurchaseStatus: setPurchaseStatus,
+      setSupplyArticle: setSupplyArticle,
       assignSupplySupplier: assignSupplySupplier,
       deleteSupplyMaterial: deleteSupplyMaterial,
       getSupplyOrderDirectory: getSupplyOrderDirectory,

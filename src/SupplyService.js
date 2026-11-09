@@ -8,7 +8,7 @@ class SupplyService {
       "Количество", "Единица", "Поставщик", "Цена", "Статус закупки",
       "Поставщик вручную", "Файл источника", "Обновлено", "Способ сопоставления", "Производитель", "Ссылка поставщика", "Категория",
       "Лист источника", "Строка заголовка", "Поставщик источника", "Версия импорта", "Исключено из версии",
-      "Закупочное количество", "Единица закупки", "Статус сопоставления", "Источник позиции", "Комментарий заявки"
+      "Закупочное количество", "Единица закупки", "Статус сопоставления", "Источник позиции", "Комментарий заявки", "Артикул исправлен вручную"
     ];
   }
 
@@ -445,7 +445,7 @@ class SupplyService {
         nextIds.add(rowId);
         const manual = Boolean((old && old[11] === true) || material.supplierManual);
         return [
-          rowId, order.contract, order.client, order.product, manual && old ? old[4] : material.article,
+          rowId, order.contract, order.client, order.product, old && (old[28] === true || manual) ? old[4] : material.article,
           material.name, material.quantity, material.unit,
           manual && old ? old[8] : material.supplier,
           manual && old ? old[9] : (Number.isFinite(material.price) ? material.price : ""),
@@ -458,7 +458,7 @@ class SupplyService {
           material.productUrl,
           material.category,
           material.sourceSheet || "", material.sourceHeaderRow || "", material.sourceSupplier || "", importVersion, "",
-          Number.isFinite(material.purchaseQuantity) && material.purchaseQuantity > 0 ? material.purchaseQuantity : "", material.purchaseUnit || "", material.matchStatus || "", "", ""
+          Number.isFinite(material.purchaseQuantity) && material.purchaseQuantity > 0 ? material.purchaseQuantity : "", material.purchaseUnit || "", material.matchStatus || "", "", "", old && old[28] === true
         ];
       });
       const keep = rows.slice(1).filter(row => {
@@ -1845,6 +1845,25 @@ class SupplyService {
     sheet.getRange(row, 11).setValue(next);
     sheet.getRange(row, 14).setValue(new Date());
     return { rowId: rowId, status: next };
+  }
+
+  static setArticle(rowId, article, expectedArticle) {
+    const value = String(article == null ? "" : article).trim();
+    if (value.length > 500 || /^[=+\-@]/.test(value)) throw new Error("Недопустимый артикул.");
+    const lock = LockService.getDocumentLock();
+    lock.waitLock(30000);
+    try {
+      const sheet = this.ensureSheet();
+      const row = this.findRow(sheet, rowId);
+      const current = String(sheet.getRange(row, 5).getValue() || "");
+      if (current !== String(expectedArticle == null ? "" : expectedArticle)) throw new Error("Артикул уже изменён. Обновите страницу и повторите попытку.");
+      sheet.getRange(row, 5).setNumberFormat("@").setValue(value);
+      sheet.getRange(row, 29).setValue(true);
+      sheet.getRange(row, 14).setValue(new Date());
+      return { rowId: rowId, article: value };
+    } finally {
+      lock.releaseLock();
+    }
   }
 
   static assignSupplier(rowId, supplier) {
