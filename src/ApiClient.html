@@ -333,6 +333,10 @@ class ApiClient {
         return this.run("updateSupplierOrderLine", orderId, lineId, quantity, unit);
     }
 
+    static deleteSupplierOrder(orderId) {
+        return this.run("deleteSupplierOrder", orderId, window.APP_VERSION);
+    }
+
     static removeSupplierOrderLines(orderId, lineIds) {
         return this.run("removeSupplierOrderLines", orderId, lineIds);
     }

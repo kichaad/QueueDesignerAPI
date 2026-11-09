@@ -402,6 +402,13 @@ static setSelectedUser(user) {
         return this.runQueueAction(ApiClient.updateSupplierOrderLine(orderId, lineId, quantity, unit));
     }
 
+    static deleteSupplierOrder(orderId) {
+        return ApiClient.deleteSupplierOrder(orderId).then(response => {
+            if (Store.getRole() === "supplierOrders") return this.applyActionSnapshot(response);
+            return response.result;
+        });
+    }
+
     static removeSupplierOrderLines(orderId, lineIds) {
         return this.runQueueAction(ApiClient.removeSupplierOrderLines(orderId, lineIds));
     }

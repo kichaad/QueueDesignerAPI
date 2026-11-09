@@ -137,7 +137,7 @@ class SupplierOrdersView {
                     return `<div class="supplier-order-product-summary"><strong>${this.escape(parts.shift())}</strong>${parts.length ? `<span>${this.escape(parts.join(" · "))}</span>` : ""}</div>`;
                 }).join("")}</div>` : "—"}</td>
                 <td data-label="Позиций" class="supplier-order-count">${this.escape(order.lineCount)}</td><td data-label="Сумма" class="supplier-order-total"><input class="supplier-order-total-input" type="text" inputmode="decimal" value="${this.escape(this.formatEditableTotal(order.total))}" placeholder="—" aria-label="Сумма заказа ${this.escape(order.number)}" title="Измените сумму; пустое поле вернёт расчёт по позициям" data-supplier-order-total="${this.escape(order.id)}"></td>
-                <td data-label="Действия" class="supplier-order-actions"><button class="reset-btn" data-supplier-order-invoice="${this.escape(order.id)}">Прикрепить<br>счёт</button><button class="reset-btn" data-supplier-order-details="${this.escape(order.id)}">Состав</button></td>
+                <td data-label="Действия" class="supplier-order-actions"><button class="reset-btn" data-supplier-order-invoice="${this.escape(order.id)}">Прикрепить<br>счёт</button><button class="reset-btn" data-supplier-order-details="${this.escape(order.id)}">Состав</button><button class="reset-btn supplier-order-line-remove" data-supplier-order-delete="${this.escape(order.id)}" data-order-number="${this.escape(order.number)}">Удалить</button></td>
             </tr>`).join("")}</tbody></table></div></div>`;
         container.querySelectorAll("[data-supplier-order-status]").forEach(select => {
             select.onchange = () => QueueController.setSupplierOrderStatus(select.dataset.supplierOrderStatus, select.value)
@@ -167,6 +167,9 @@ class SupplierOrdersView {
         });
         container.querySelectorAll("[data-supplier-order-details]").forEach(button => {
             button.onclick = () => this.openDetails(button.dataset.supplierOrderDetails);
+        });
+        container.querySelectorAll("[data-supplier-order-delete]").forEach(button => {
+            button.onclick = () => this.deleteOrder(button.dataset.supplierOrderDelete, button.dataset.orderNumber, button);
         });
     }
 
@@ -353,6 +356,16 @@ class SupplierOrdersView {
         }).catch(error => QueueView.showMessage(error));
     }
 
+    static async deleteOrder(orderId, number, button) {
+        const confirmed = await SupplyView.showSupplyDialog("Удалить заказ поставщику?", `Удалить заказ ${number} целиком? Его позиции вернутся в «Закупку» со статусом «Новый». Если позиция есть в другом заказе, сохранится статус другого заказа. Прикреплённые файлы останутся на Диске.`, { confirmText: "Удалить" });
+        if (!confirmed) return;
+        button.disabled = true;
+        try {
+            await QueueController.deleteSupplierOrder(orderId);
+            if (this.currentDetails?.order?.id === orderId) { document.getElementById("supplierOrderDetailsModal").classList.add("hidden"); this.currentDetails = null; }
+        } catch (error) { button.disabled = false; QueueView.showMessage(error); }
+    }
+
     static refreshDetails() {
         const orderId = this.currentDetails?.order?.id;
         if (orderId) this.openDetails(orderId, false);
@@ -460,8 +473,9 @@ class SupplierOrdersView {
         }).join("");
         const selectionHeader = editable && !this.aggregateDetails ? `<th><input type="checkbox" id="supplierOrderSelectAll"${lines.length && selectedCount === lines.length ? " checked" : ""}></th>` : "";
         document.getElementById("supplierOrderDetailsTitle").textContent = `${data.order.number} · ${data.order.supplier} · Итого: ${data.order.total === "" || data.order.total == null ? "—" : this.formatMoney(data.order.total)}`;
-        document.getElementById("supplierOrderDetailsContent").innerHTML = `${toolbar}${deliveryToolbar}${this.renderAddPanel()}<table><thead><tr>${selectionHeader}<th>Артикул</th><th>Наименование</th><th>Кол-во</th><th>Ед.</th><th>Цена</th><th>Сумма</th><th>${detailColumn}</th><th>Дата поставки</th>${actionsColumn}</tr></thead><tbody>${rows || "<tr><td colspan=\"9\">В заказе нет позиций.</td></tr>"}</tbody></table>`;
+        document.getElementById("supplierOrderDetailsContent").innerHTML = `${toolbar}<button class="reset-btn supplier-order-line-remove" id="supplierOrderDeleteAll">Удалить заказ</button>${deliveryToolbar}${this.renderAddPanel()}<table><thead><tr>${selectionHeader}<th>Артикул</th><th>Наименование</th><th>Кол-во</th><th>Ед.</th><th>Цена</th><th>Сумма</th><th>${detailColumn}</th><th>Дата поставки</th>${actionsColumn}</tr></thead><tbody>${rows || "<tr><td colspan=\"9\">В заказе нет позиций.</td></tr>"}</tbody></table>`;
         this.bindDetailControls();
+        document.getElementById("supplierOrderDeleteAll").onclick = event => this.deleteOrder(data.order.id, data.order.number, event.currentTarget);
         document.querySelectorAll("#supplierOrderDetailsContent [data-line-money]").forEach(input => {
             const original = input.value;
             input.onchange = async () => {

@@ -650,6 +650,46 @@ class SupplierOrderService {
     }
   }
 
+  static deleteOrder(orderId) {
+    const id = String(orderId || "").trim();
+    const lock = LockService.getDocumentLock();
+    lock.waitLock(30000);
+    try {
+      const ordersSheet = this.ensureOrdersSheet();
+      const orders = ordersSheet.getDataRange().getValues();
+      const index = orders.slice(1).findIndex(row => String(row[0] || "") === id);
+      if (index < 0) throw new Error("Заказ поставщику не найден.");
+      const lineSheet = this.ensureLinesSheet();
+      const lines = lineSheet.getDataRange().getValues().slice(1);
+      const removed = lines.map((row, i) => ({ row, number: i + 2 })).filter(item => String(item.row[1] || "") === id);
+      const materialIds = new Set(removed.map(item => String(item.row[2] || "")).filter(Boolean));
+      const remainingOrderStatuses = {};
+      orders.slice(1).filter(row => String(row[0] || "") !== id).forEach(row => { remainingOrderStatuses[String(row[0])] = this.MATERIAL_STATUS_BY_ORDER_STATUS[String(row[3])] || "Заказ поставщику"; });
+      const remainingStatuses = {};
+      lines.filter(row => String(row[1] || "") !== id).forEach(row => {
+        const materialId = String(row[2] || "");
+        const status = remainingOrderStatuses[String(row[1] || "")];
+        if (materialIds.has(materialId) && status) remainingStatuses[materialId] = status;
+      });
+      const supplySheet = SupplyService.ensureSheet();
+      const supplyRows = supplySheet.getDataRange().getValues().slice(1);
+      const byStatus = {};
+      supplyRows.forEach((row, i) => {
+        const materialId = String(row[0] || "");
+        if (!materialIds.has(materialId)) return;
+        const status = remainingStatuses[materialId] || "Новый";
+        (byStatus[status] || (byStatus[status] = [])).push(i + 2);
+      });
+      Object.keys(byStatus).forEach(status => supplySheet.getRangeList(byStatus[status].map(row => "K" + row)).setValue(status));
+      const changedRows = Object.values(byStatus).flat();
+      if (changedRows.length) supplySheet.getRangeList(changedRows.map(row => "N" + row)).setValue(new Date());
+      removed.map(item => item.number).sort((a, b) => b - a).forEach(row => lineSheet.deleteRow(row));
+      ordersSheet.deleteRow(index + 2);
+      CacheService.getScriptCache().remove("supplier-order-material-status-sync-v1");
+      return { id, deleted: true, lineCount: removed.length, sharedCount: Object.keys(remainingStatuses).length };
+    } finally { lock.releaseLock(); }
+  }
+
   static removeLines(orderId, lineIds) {
     const id = String(orderId || "").trim();
     const targetLineIds = [...new Set((lineIds || []).map(String).filter(Boolean))];

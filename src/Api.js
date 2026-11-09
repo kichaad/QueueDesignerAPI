@@ -120,6 +120,7 @@ class Api {
       addSupplierOrderMaterials: addSupplierOrderMaterials,
       updateSupplierOrderLine: updateSupplierOrderLine,
       removeSupplierOrderLines: removeSupplierOrderLines,
+      deleteSupplierOrder: deleteSupplierOrder,
       splitSupplierOrderLines: splitSupplierOrderLines,
       setSupplierOrderStatus: setSupplierOrderStatus,
       saveSupplierOrderInvoiceNumbers: saveSupplierOrderInvoiceNumbers,

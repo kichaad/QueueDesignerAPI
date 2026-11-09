@@ -389,6 +389,11 @@ function updateSupplierOrderLine(orderId, lineId, quantity, unit) {
   const result = SupplierOrderService.updateLine(orderId, lineId, quantity, unit);
   return { result: result, snapshot: SupplierOrderService.getSnapshot() };
 }
+function deleteSupplierOrder(orderId, clientVersion) {
+  assertClientAppVersion(clientVersion);
+  const result = SupplierOrderService.deleteOrder(orderId);
+  return { result: result, snapshot: SupplierOrderService.getSnapshot(), appVersion: CONFIG.APP_VERSION };
+}
 function removeSupplierOrderLines(orderId, lineIds) {
   const result = SupplierOrderService.removeLines(orderId, lineIds);
   return { result: result, snapshot: SupplierOrderService.getSnapshot() };
