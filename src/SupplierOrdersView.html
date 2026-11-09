@@ -456,12 +456,28 @@ class SupplierOrdersView {
             const lineIds = this.aggregateDetails ? line.lineIds : [line.lineId];
             const actions = editable ? `<td class="supplier-order-line-actions">${!this.aggregateDetails ? `<button class="reset-btn" data-order-line-save="${this.escape(line.lineId)}">Сохранить</button>` : ""}<button class="reset-btn supplier-order-line-remove" data-order-line-remove="${this.escape(lineIds.join(","))}">Удалить</button></td>` : "";
             const selection = editable && !this.aggregateDetails ? `<td><input type="checkbox" data-order-line-select="${this.escape(line.lineId)}"${this.selectedLineIds.has(line.lineId) ? " checked" : ""}></td>` : "";
-            return `<tr>${selection}<td><div class="article-edit-controls"><input type="text" data-detail-article="${index}" value="${this.escape(line.article || "")}" aria-label="Артикул ${this.escape(line.name)}"><button class="reset-btn" data-detail-article-save="${index}">Сохранить артикул</button></div></td><td>${this.escape(line.name)}</td><td>${quantity}</td><td>${unit}</td><td>${this.formatMoney(line.price)}</td><td>${this.formatMoney(line.total)}</td><td>${detail}</td><td>${deliveryEditable ? `<input type="date" data-line-delivery="${index}" value="${this.escape(line.deliveryDate)}" data-saved-date="${this.escape(line.deliveryDate)}" data-delivery-line-ids="${this.escape(JSON.stringify(lineIds))}" aria-label="Дата поставки ${this.escape(line.name)}">` : "—"}</td>${actions}</tr>`;
+            return `<tr>${selection}<td><div class="article-edit-controls"><input type="text" data-detail-article="${index}" value="${this.escape(line.article || "")}" aria-label="Артикул ${this.escape(line.name)}"><button class="reset-btn" data-detail-article-save="${index}">Сохранить артикул</button></div></td><td>${this.escape(line.name)}</td><td>${quantity}</td><td>${unit}</td><td><input type="text" inputmode="decimal" data-line-money="price" data-line-index="${index}" value="${this.escape(this.formatEditableTotal(line.price))}" placeholder="—" aria-label="Цена ${this.escape(line.name)}"></td><td><input type="text" inputmode="decimal" data-line-money="total" data-line-index="${index}" value="${this.escape(this.formatEditableTotal(line.total))}" placeholder="—" aria-label="Сумма ${this.escape(line.name)}"></td><td>${detail}</td><td>${deliveryEditable ? `<input type="date" data-line-delivery="${index}" value="${this.escape(line.deliveryDate)}" data-saved-date="${this.escape(line.deliveryDate)}" data-delivery-line-ids="${this.escape(JSON.stringify(lineIds))}" aria-label="Дата поставки ${this.escape(line.name)}">` : "—"}</td>${actions}</tr>`;
         }).join("");
         const selectionHeader = editable && !this.aggregateDetails ? `<th><input type="checkbox" id="supplierOrderSelectAll"${lines.length && selectedCount === lines.length ? " checked" : ""}></th>` : "";
-        document.getElementById("supplierOrderDetailsTitle").textContent = `${data.order.number} · ${data.order.supplier}`;
+        document.getElementById("supplierOrderDetailsTitle").textContent = `${data.order.number} · ${data.order.supplier} · Итого: ${data.order.total === "" || data.order.total == null ? "—" : this.formatMoney(data.order.total)}`;
         document.getElementById("supplierOrderDetailsContent").innerHTML = `${toolbar}${deliveryToolbar}${this.renderAddPanel()}<table><thead><tr>${selectionHeader}<th>Артикул</th><th>Наименование</th><th>Кол-во</th><th>Ед.</th><th>Цена</th><th>Сумма</th><th>${detailColumn}</th><th>Дата поставки</th>${actionsColumn}</tr></thead><tbody>${rows || "<tr><td colspan=\"9\">В заказе нет позиций.</td></tr>"}</tbody></table>`;
         this.bindDetailControls();
+        document.querySelectorAll("#supplierOrderDetailsContent [data-line-money]").forEach(input => {
+            const original = input.value;
+            input.onchange = async () => {
+                if (input.value === original) return;
+                const line = lines[Number(input.dataset.lineIndex)];
+                const ids = line.lineIds || [line.lineId];
+                const expected = {};
+                data.detailedLines.filter(item => ids.includes(item.lineId)).forEach(item => { expected[item.lineId] = { price: item.price, total: item.total }; });
+                input.disabled = true;
+                try {
+                    await this.saveEditedDeliveryDates();
+                    await QueueController.setSupplierOrderLineMoney(data.order.id, ids, input.dataset.lineMoney, input.value, expected);
+                    this.openDetails(data.order.id, false);
+                } catch (error) { input.value = original; input.disabled = false; QueueView.showMessage(error); }
+            };
+        });
         const deliveryAggregate = document.getElementById("supplierOrderDeliveryAggregate");
         if (deliveryAggregate) deliveryAggregate.onchange = async () => {
             try { await this.saveEditedDeliveryDates(); this.aggregateDetails = deliveryAggregate.checked; this.renderDetails(); }

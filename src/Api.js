@@ -110,6 +110,7 @@ class Api {
       saveSupplierOrderDeliveryDates: saveSupplierOrderDeliveryDates,
       exportSupplierOrderExcel: exportSupplierOrderExcel,
       setSupplierOrderLineArticle: setSupplierOrderLineArticle,
+      setSupplierOrderLineMoney: setSupplierOrderLineMoney,
       prepareMdmSupplierOrdersExport: prepareMdmSupplierOrdersExport,
       completeMdmSupplierOrdersExport: completeMdmSupplierOrdersExport,
       exportAllOrdersExcel: exportAllOrdersExcel,

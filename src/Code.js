@@ -346,6 +346,11 @@ function setSupplierOrderLineArticle(orderId, lineIds, article, expectedArticle,
   const result = SupplierOrderService.setLineArticle(orderId, lineIds, article, expectedArticle);
   return { result: result, snapshot: SupplierOrderService.getSnapshot(), appVersion: CONFIG.APP_VERSION };
 }
+function setSupplierOrderLineMoney(orderId, lineIds, field, value, expected, clientVersion) {
+  assertClientAppVersion(clientVersion);
+  const result = SupplierOrderService.setLineMoney(orderId, lineIds, field, value, expected);
+  return { result: result, snapshot: SupplierOrderService.getSnapshot(), appVersion: CONFIG.APP_VERSION };
+}
 function prepareMdmSupplierOrdersExport(orderIds, clientVersion) {
   assertClientAppVersion(clientVersion);
   return SupplierOrderService.prepareMdmExport(orderIds);

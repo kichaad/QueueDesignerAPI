@@ -348,6 +348,13 @@ static setSelectedUser(user) {
         return ApiClient.getSupplierOrderDetails(orderId);
     }
 
+    static setSupplierOrderLineMoney(orderId, lineIds, field, value, expected) {
+        return ApiClient.setSupplierOrderLineMoney(orderId, lineIds, field, value, expected).then(response => {
+            if (Store.getRole() === "supplierOrders") return this.applyActionSnapshot(response);
+            return response.result;
+        });
+    }
+
     static setSupplierOrderLineArticle(orderId, lineIds, article, expectedArticle) {
         return ApiClient.setSupplierOrderLineArticle(orderId, lineIds, article, expectedArticle).then(response => {
             if (Store.getRole() === "supplierOrders") return this.applyActionSnapshot(response);

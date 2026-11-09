@@ -285,6 +285,10 @@ class ApiClient {
         return this.run("getSupplierOrderDetails", orderId);
     }
 
+    static setSupplierOrderLineMoney(orderId, lineIds, field, value, expected) {
+        return this.run("setSupplierOrderLineMoney", orderId, lineIds, field, value, expected, window.APP_VERSION);
+    }
+
     static setSupplierOrderLineArticle(orderId, lineIds, article, expectedArticle) {
         return this.run("setSupplierOrderLineArticle", orderId, lineIds, article, expectedArticle, window.APP_VERSION);
     }

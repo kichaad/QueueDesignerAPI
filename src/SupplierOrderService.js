@@ -419,8 +419,8 @@ class SupplierOrderService {
       sheet.getRange(row, 11).setValue(raw !== "");
       if (raw === "") {
         const lines = this.ensureLinesSheet().getDataRange().getValues().slice(1).filter(line => String(line[1] || "") === id);
-        const unknown = !lines.length || lines.some(line => line[10] === "" || line[10] == null || !Number.isFinite(Number(line[10])));
-        sheet.getRange(row, 7).setValue(unknown ? "" : lines.reduce((sum, line) => sum + Number(line[8] || 0) * Number(line[10] || 0), 0));
+        const unknown = !lines.length || lines.some(line => line[11] === "" || line[11] == null || !Number.isFinite(Number(line[11])));
+        sheet.getRange(row, 7).setValue(unknown ? "" : Math.round(lines.reduce((sum, line) => sum + Number(line[11]), 0) * 100) / 100);
         sheet.getRange(row, 6).setValue(now);
       }
       else { sheet.getRange(row, 7).setValue(value); sheet.getRange(row, 6).setValue(now); }
@@ -583,6 +583,44 @@ class SupplierOrderService {
     return { quantity: Number(row[6] || 0), unit: String(row[7] || "") };
   }
 
+  static setLineMoney(orderId, lineIds, field, amount, expected) {
+    const id = String(orderId || "").trim();
+    const ids = [...new Set((lineIds || []).map(String))];
+    const raw = String(amount == null ? "" : amount).trim().replace(/\s/g, "").replace(",", ".");
+    const value = raw === "" ? null : Number(raw);
+    if (!ids.length || !["price", "total"].includes(field)) throw new Error("Позиция заказа не выбрана.");
+    if (raw && (!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(raw) || !Number.isFinite(value) || value < 0 || value > 1000000000000)) throw new Error("Укажите неотрицательную цену или сумму.");
+    const lock = LockService.getDocumentLock();
+    lock.waitLock(30000);
+    try {
+      const ordersSheet = this.ensureOrdersSheet();
+      const orders = ordersSheet.getDataRange().getValues();
+      const orderIndex = orders.slice(1).findIndex(row => String(row[0]) === id);
+      if (orderIndex < 0) throw new Error("Заказ поставщику не найден.");
+      const lineSheet = this.ensureLinesSheet();
+      const rows = lineSheet.getDataRange().getValues();
+      const selected = rows.slice(1).map((row, index) => ({row, rowNumber: index + 2})).filter(item => String(item.row[1]) === id && ids.includes(String(item.row[0])));
+      if (selected.length !== ids.length) throw new Error("Позиция заказа изменилась. Обновите состав.");
+      const prior = expected || {};
+      if (selected.some(item => !prior[String(item.row[0])] || String(item.row[10] ?? "") !== String(prior[String(item.row[0])].price ?? "") || String(item.row[11] ?? "") !== String(prior[String(item.row[0])].total ?? ""))) throw new Error("Цена или сумма уже изменена. Обновите состав заказа.");
+      const quantity = selected.reduce((sum, item) => sum + Number(item.row[8] || 0), 0);
+      if (!(quantity > 0)) throw new Error("Количество должно быть больше нуля.");
+      const price = value === null ? "" : (field === "price" ? value : value / quantity);
+      let remaining = value === null ? 0 : (field === "total" ? Math.round(value * 100) : null);
+      selected.forEach((item, index) => {
+        let total = "";
+        if (value !== null) {
+          if (field === "price") total = Math.round((Number(item.row[8]) * price + Number.EPSILON) * 100) / 100;
+          else { const cents = index === selected.length - 1 ? remaining : Math.min(remaining, Math.round(value * 100 * Number(item.row[8]) / quantity)); remaining -= cents; total = cents / 100; }
+        }
+        lineSheet.getRange(item.rowNumber, 11, 1, 2).setValues([[price, total]]);
+      });
+      const all = lineSheet.getDataRange().getValues().slice(1).filter(row => String(row[1]) === id);
+      if (all.length && all.every(row => row[11] !== "" && row[11] != null && Number.isFinite(Number(row[11])))) ordersSheet.getRange(orderIndex + 2, 11).setValue(false);
+      return this.updateOrderSummary(id, ordersSheet, lineSheet, orderIndex + 2, new Date());
+    } finally { lock.releaseLock(); }
+  }
+
   static updateLine(orderId, lineId, quantity, unit) {
     const id = String(orderId || "").trim();
     const targetLineId = String(lineId || "").trim();
@@ -677,8 +715,8 @@ class SupplierOrderService {
       const now = new Date();
       const newOrderId = Utilities.getUuid();
       const number = this.nextNumber(ordersSheet, now);
-      const hasUnknownPrice = selected.some(item => item.row[10] === "" || item.row[10] === null || !Number.isFinite(Number(item.row[10])));
-      const total = selected.reduce((sum, item) => sum + Number(item.row[8] || 0) * Number(item.row[10] || 0), 0);
+      const hasUnknownPrice = selected.some(item => item.row[11] === "" || item.row[11] === null || !Number.isFinite(Number(item.row[11])));
+      const total = Math.round(selected.reduce((sum, item) => sum + Number(item.row[11] || 0), 0) * 100) / 100;
       ordersSheet.appendRow([newOrderId, number, sourceOrder[2], this.ORDER_STATUSES[0], now, now, hasUnknownPrice ? "" : total, selected.length]);
       lineSheet.getRangeList(selected.map(item => "B" + item.rowNumber)).setValue(newOrderId);
       const source = this.updateOrderSummary(id, ordersSheet, lineSheet, orderIndex + 2, now);
@@ -697,8 +735,8 @@ class SupplierOrderService {
       ordersSheet.deleteRow(orderRowNumber);
       return { id: orderId, deleted: true, lineCount: 0 };
     }
-    const hasUnknownPrice = lines.some(row => row[10] === "" || row[10] === null || !Number.isFinite(Number(row[10])));
-    const total = lines.reduce((sum, row) => sum + Number(row[8] || 0) * Number(row[10] || 0), 0);
+    const hasUnknownPrice = lines.some(row => row[11] === "" || row[11] === null || !Number.isFinite(Number(row[11])));
+    const total = Math.round(lines.reduce((sum, row) => sum + Number(row[11] || 0), 0) * 100) / 100;
     const manual = ordersSheet.getRange(orderRowNumber, 11).getValue() === true;
     const effectiveTotal = manual ? ordersSheet.getRange(orderRowNumber, 7).getValue() : (hasUnknownPrice ? "" : total);
     ordersSheet.getRange(orderRowNumber, 6, 1, 3).setValues([[updatedAt, effectiveTotal, lines.length]]);
@@ -716,7 +754,7 @@ class SupplierOrderService {
     lines.forEach(line => {
       const key = [line.article, line.name, line.unit, line.price, line.deliveryDateOverride].join("|");
       if (!grouped[key]) grouped[key] = Object.assign({}, line, { sourceCount: 0, lineIds: [] });
-      else grouped[key].quantity += line.quantity;
+      else { grouped[key].quantity += line.quantity; grouped[key].total = grouped[key].total === "" || grouped[key].total == null || line.total === "" || line.total == null ? "" : Math.round((Number(grouped[key].total) + Number(line.total)) * 100) / 100; }
       grouped[key].sourceCount++;
       grouped[key].lineIds.push(line.lineId);
     });
