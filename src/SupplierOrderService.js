@@ -225,6 +225,7 @@ class SupplierOrderService {
     const rows = ordersSheet.getDataRange().getValues().slice(1).filter(row => row[0]);
     const linesSheet = SheetService.getSpreadsheet().getSheetByName(CONFIG.SHEETS.SUPPLIER_ORDER_LINES);
     const productsByOrderId = {};
+    const productOptionsByOrderId = {};
     const articleIssuesByOrderId = {};
     const datesByOrderId = {};
     if (linesSheet && linesSheet.getLastRow() >= 2) {
@@ -237,6 +238,12 @@ class SupplierOrderService {
         if (!orderId || !product) return;
         if (!productsByOrderId[orderId]) productsByOrderId[orderId] = new Set();
         productsByOrderId[orderId].add(product);
+        const parts = [line[3], line[4], line[5]].map(value => String(value || "").trim());
+        if (parts[2]) {
+          if (!productOptionsByOrderId[orderId]) productOptionsByOrderId[orderId] = new Map();
+          const key = JSON.stringify(parts);
+          productOptionsByOrderId[orderId].set(key, { key: key, label: product });
+        }
       });
     }
     return rows.map(row => ({
@@ -247,7 +254,8 @@ class SupplierOrderService {
       deliveryDate: (datesByOrderId[String(row[0])] || []).map(date => date || this.deliveryDate(row[9])).filter(Boolean).sort().pop() || "",
       deliveryDateMissingCount: (datesByOrderId[String(row[0])] || []).filter(date => !date && !this.deliveryDate(row[9])).length,
       articleIssueCount: articleIssuesByOrderId[String(row[0])] || 0,
-      products: [...(productsByOrderId[String(row[0])] || [])].sort((left, right) => left.localeCompare(right, "ru"))
+      products: [...(productsByOrderId[String(row[0])] || [])].sort((left, right) => left.localeCompare(right, "ru")),
+      productOptions: [...(productOptionsByOrderId[String(row[0])] || new Map()).values()].sort((left, right) => left.label.localeCompare(right.label, "ru"))
     })).sort((left, right) => new Date(right.createdAt || 0) - new Date(left.createdAt || 0));
   }
 

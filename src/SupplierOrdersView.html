@@ -36,6 +36,7 @@ class SupplierOrdersView {
             QueueController.setSelectedUser(event.target.value || "");
         };
         document.getElementById("supplierOrdersStatusFilter").onchange = () => QueueView.render();
+        document.getElementById("supplierOrdersProductFilter").onchange = () => QueueView.render();
         document.getElementById("createSupplierOrderBtn").onclick = () => SupplyView.openSupplierOrders();
         document.getElementById("cancelSupplierOrderInvoiceQuick").onclick = () => this.closeInvoiceAttach();
         document.getElementById("saveSupplierOrderInvoiceQuick").onclick = () => this.attachInvoice();
@@ -53,8 +54,19 @@ class SupplierOrdersView {
 
         this.renderSupplierButtons(suppliers, selectedSupplier);
         const selectedStatus = document.getElementById("supplierOrdersStatusFilter")?.value || "";
-        const supplierRows = (items || []).filter(item => this.matchesStatus(item, selectedStatus));
-        const statusRows = (items || []).filter(item => !selectedSupplier || item.supplier === selectedSupplier);
+        const productSelect = document.getElementById("supplierOrdersProductFilter");
+        const selectedProduct = productSelect?.value || "";
+        const matchesProduct = item => !selectedProduct || (item.productOptions || []).some(product => product.key === selectedProduct);
+        const supplierRows = (items || []).filter(item => this.matchesStatus(item, selectedStatus) && matchesProduct(item));
+        const statusRows = (items || []).filter(item => (!selectedSupplier || item.supplier === selectedSupplier) && matchesProduct(item));
+        const products = new Map();
+        (items || []).forEach(item => (item.productOptions || []).forEach(product => { if (product.key && product.label) products.set(product.key, product.label); }));
+        if (productSelect) {
+            const availableRows = (items || []).filter(item => (!selectedSupplier || item.supplier === selectedSupplier) && this.matchesStatus(item, selectedStatus));
+            const ordered = [...products.entries()].sort((a, b) => a[1].localeCompare(b[1], "ru", { sensitivity: "base" }));
+            productSelect.innerHTML = `<option value="">Все изделия · ${availableRows.length}</option>` + ordered.map(([key, label]) => `<option value="${this.escape(key)}">${this.escape(label)}</option>`).join("");
+            productSelect.value = products.has(selectedProduct) ? selectedProduct : "";
+        }
         const countBy = (rows, key) => rows.reduce((counts, item) => counts.set(item[key], (counts.get(item[key]) || 0) + 1), new Map());
         this.syncSelect("supplierOrdersSupplierFilter", suppliers, "Все поставщики", selectedSupplier, countBy(supplierRows, "supplier"), supplierRows.length);
         const statusSelect = document.getElementById("supplierOrdersStatusFilter");
@@ -93,7 +105,8 @@ class SupplierOrdersView {
     static getFilteredItems(items) {
         const supplier = Store.getSelectedUser();
         const status = document.getElementById("supplierOrdersStatusFilter")?.value || "";
-        return (items || []).filter(item => (!supplier || item.supplier === supplier) && this.matchesStatus(item, status));
+        const product = document.getElementById("supplierOrdersProductFilter")?.value || "";
+        return (items || []).filter(item => (!supplier || item.supplier === supplier) && this.matchesStatus(item, status) && (!product || (item.productOptions || []).some(option => option.key === product)));
     }
 
     static render(items) {
@@ -166,7 +179,8 @@ class SupplierOrdersView {
             if (order.total === "" || order.total == null || !Number.isFinite(Number(order.total))) missing += 1;
             else sum += Number(order.total);
         });
-        output.textContent = `Итого не оплачено: ${this.formatMoney(sum)}${missing ? ` · Без суммы: ${missing}` : ""}`;
+        const productFiltered = Boolean(document.getElementById("supplierOrdersProductFilter")?.value);
+        output.textContent = `Итого не оплачено: ${this.formatMoney(sum)}${missing ? ` · Без суммы: ${missing}` : ""}${productFiltered ? " · Суммы заказов целиком" : ""}`;
     }
 
     static formatEditableTotal(value) {

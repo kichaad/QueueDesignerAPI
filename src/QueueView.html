@@ -2179,6 +2179,8 @@ static getCurrentListExcelFilters(role) {
     const parts = [`Раздел: ${roleLabels[role] || role}`];
     const selected = String(Store.getSelectedUser() || "").trim();
     if (selected) parts.push(`Отбор: ${selected === "__supply_other__" ? "Прочие" : selected}`);
+    const supplierProduct = document.getElementById("supplierOrdersProductFilter");
+    if (role === "supplierOrders" && supplierProduct?.value) parts.push(`Изделие: ${supplierProduct.selectedOptions[0]?.textContent || ""}`);
     const controls = [
         ["supplySearch", "Поиск"], ["supplyStatusFilter", "Статус"], ["supplyProductFilter", "Изделие"],
         ["supplierOrdersStatusFilter", "Статус"], ["equipmentSearch", "Поиск"],
