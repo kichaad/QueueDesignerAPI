@@ -188,7 +188,7 @@ class SupplierOrderService {
   }
 
   static get ORDER_HEADERS() {
-    return ["ID", "Номер", "Поставщик", "Статус", "Создано", "Обновлено", "Сумма", "Позиций", "Номер счёта", "Общая дата поставки"];
+    return ["ID", "Номер", "Поставщик", "Статус", "Создано", "Обновлено", "Сумма", "Позиций", "Номер счёта", "Общая дата поставки", "Сумма вручную"];
   }
 
   static get LINE_HEADERS() {
@@ -392,6 +392,32 @@ class SupplierOrderService {
     } finally {
       lock.releaseLock();
     }
+  }
+
+  static saveOrderTotal(orderId, amount) {
+    const id = String(orderId || "").trim();
+    const raw = String(amount == null ? "" : amount).trim().replace(/\s/g, "").replace(",", ".");
+    const value = raw === "" ? null : Number(raw);
+    if (raw && (!Number.isFinite(value) || value < 0)) throw new Error("Укажите неотрицательную сумму.");
+    const lock = LockService.getDocumentLock();
+    lock.waitLock(30000);
+    try {
+      const sheet = this.ensureOrdersSheet();
+      const rows = sheet.getDataRange().getValues();
+      const index = rows.slice(1).findIndex(row => String(row[0] || "") === id);
+      if (index < 0) throw new Error("Заказ поставщику не найден.");
+      const row = index + 2;
+      const now = new Date();
+      sheet.getRange(row, 11).setValue(raw !== "");
+      if (raw === "") {
+        const lines = this.ensureLinesSheet().getDataRange().getValues().slice(1).filter(line => String(line[1] || "") === id);
+        const unknown = !lines.length || lines.some(line => line[10] === "" || line[10] == null || !Number.isFinite(Number(line[10])));
+        sheet.getRange(row, 7).setValue(unknown ? "" : lines.reduce((sum, line) => sum + Number(line[8] || 0) * Number(line[10] || 0), 0));
+        sheet.getRange(row, 6).setValue(now);
+      }
+      else { sheet.getRange(row, 7).setValue(value); sheet.getRange(row, 6).setValue(now); }
+      return { id: id, total: value, manual: raw !== "" };
+    } finally { lock.releaseLock(); }
   }
 
   static appendInvoiceNumber(orderId, invoiceNumber) {
@@ -665,8 +691,10 @@ class SupplierOrderService {
     }
     const hasUnknownPrice = lines.some(row => row[10] === "" || row[10] === null || !Number.isFinite(Number(row[10])));
     const total = lines.reduce((sum, row) => sum + Number(row[8] || 0) * Number(row[10] || 0), 0);
-    ordersSheet.getRange(orderRowNumber, 6, 1, 3).setValues([[updatedAt, hasUnknownPrice ? "" : total, lines.length]]);
-    return { id: orderId, deleted: false, lineCount: lines.length, total: hasUnknownPrice ? "" : total };
+    const manual = ordersSheet.getRange(orderRowNumber, 11).getValue() === true;
+    const effectiveTotal = manual ? ordersSheet.getRange(orderRowNumber, 7).getValue() : (hasUnknownPrice ? "" : total);
+    ordersSheet.getRange(orderRowNumber, 6, 1, 3).setValues([[updatedAt, effectiveTotal, lines.length]]);
+    return { id: orderId, deleted: false, lineCount: lines.length, total: effectiveTotal };
   }
 
   static getOrderDetails(orderId) {

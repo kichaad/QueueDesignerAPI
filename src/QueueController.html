@@ -405,6 +405,7 @@ static setSelectedUser(user) {
     static saveSupplierOrderInvoiceNumbers(orderId, invoiceNumbers) {
         return this.runQueueAction(ApiClient.saveSupplierOrderInvoiceNumbers(orderId, invoiceNumbers));
     }
+    static saveSupplierOrderTotal(orderId, amount) { return this.runQueueAction(ApiClient.saveSupplierOrderTotal(orderId, amount)); }
 
     static attachSupplierOrderInvoice(orderId, payload) {
         return this.runQueueAction(ApiClient.attachSupplierOrderInvoice(orderId, payload));

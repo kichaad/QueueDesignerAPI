@@ -339,6 +339,7 @@ class ApiClient {
     static saveSupplierOrderInvoiceNumbers(orderId, invoiceNumbers) {
         return this.run("saveSupplierOrderInvoiceNumbers", orderId, invoiceNumbers);
     }
+    static saveSupplierOrderTotal(orderId, amount) { return this.run("saveSupplierOrderTotal", orderId, amount); }
 
     static attachSupplierOrderInvoice(orderId, payload) {
         return this.run("attachSupplierOrderInvoice", orderId, payload);

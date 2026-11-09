@@ -394,6 +394,10 @@ function saveSupplierOrderInvoiceNumbers(orderId, invoiceNumbers) {
   const result = SupplierOrderService.saveInvoiceNumbers(orderId, invoiceNumbers);
   return { result: result, snapshot: SupplierOrderService.getSnapshot() };
 }
+function saveSupplierOrderTotal(orderId, amount) {
+  const result = SupplierOrderService.saveOrderTotal(orderId, amount);
+  return { result: result, snapshot: SupplierOrderService.getSnapshot() };
+}
 function attachSupplierOrderInvoice(orderId, payload) {
   const result = SupplierInvoiceService.attachQuick(orderId, payload);
   return { result: result, snapshot: SupplierOrderService.getSnapshot() };
