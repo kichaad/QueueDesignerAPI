@@ -1,5 +1,5 @@
 /** Fixed, read-only data gateway for migration of the supplier order list.
- * This is intentionally not registered with the RPC dispatcher yet.
+ * Exposed only through the authenticated TimeWeb RPC dispatcher.
  * Preserve the actual GAS UI until the PHP projection is verified against it.
  */
 function readSupplierOrderTableData() {
@@ -8,7 +8,9 @@ function readSupplierOrderTableData() {
   const read = (name, count, dateColumns) => {
     const sheet = spreadsheet.getSheetByName(name);
     if (!sheet || sheet.getLastRow() < 2) return [];
-    const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, count).getValues();
+    if (sheet.getLastRow() > 20001) throw new Error('TABLE_TOO_LARGE|Слишком много строк для загрузки.');
+    const width = Math.min(count, sheet.getMaxColumns());
+    const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, width).getValues();
     return rows.map(row => row.map((value, index) => {
       if (!(value instanceof Date)) return value;
       return dateColumns.includes(index) ? Utilities.formatDate(value, timezone, 'yyyy-MM-dd') : value.toISOString();

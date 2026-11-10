@@ -81,6 +81,7 @@ class Api {
   static getTimewebRpcHandlers() {
     return {
       getOrders: getOrders,
+      readSupplierOrderTableData: readSupplierOrderTableData,
       downloadMeasurementArchive: downloadMeasurementArchive,
       getManualRequestChoices: getManualRequestChoices,
       getManualRequestOrderDirectory: getManualRequestOrderDirectory,
