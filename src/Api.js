@@ -129,6 +129,8 @@ class Api {
       removeSupplierOrderLines: removeSupplierOrderLines,
       deleteSupplierOrder: deleteSupplierOrder,
       splitSupplierOrderLines: splitSupplierOrderLines,
+      setSupplierOrderStatusFast: setSupplierOrderStatusFast,
+      saveSupplierOrderInvoiceNumbersFast: saveSupplierOrderInvoiceNumbersFast,
       setSupplierOrderStatus: setSupplierOrderStatus,
       saveSupplierOrderInvoiceNumbers: saveSupplierOrderInvoiceNumbers,
       attachSupplierOrderInvoice: attachSupplierOrderInvoice,
