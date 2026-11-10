@@ -402,6 +402,16 @@ function splitSupplierOrderLines(orderId, lineIds) {
   const result = SupplierOrderService.splitLinesToNewOrder(orderId, lineIds);
   return { result: result, snapshot: SupplierOrderService.getSnapshot() };
 }
+function setSupplierOrderStatusFast(orderId, status) {
+  const started = Date.now();
+  const result = SupplierOrderService.setStatus(orderId, status);
+  return { result: result, supplierPatch: { id: result.id, values: { status: result.status } }, appVersion: CONFIG.APP_VERSION, performance: { actionMs: Date.now() - started } };
+}
+function saveSupplierOrderInvoiceNumbersFast(orderId, invoiceNumbers) {
+  const started = Date.now();
+  const result = SupplierOrderService.saveInvoiceNumbers(orderId, invoiceNumbers);
+  return { result: result, supplierPatch: { id: result.id, values: { invoiceNumbers: result.invoiceNumbers, status: result.status } }, appVersion: CONFIG.APP_VERSION, performance: { actionMs: Date.now() - started } };
+}
 function setSupplierOrderStatus(orderId, status) {
   const result = SupplierOrderService.setStatus(orderId, status);
   return { result: result, snapshot: SupplierOrderService.getSnapshot() };
