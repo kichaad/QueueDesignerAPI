@@ -82,6 +82,7 @@ class Api {
     return {
       getOrders: getOrders,
       readSupplierOrderTableData: readSupplierOrderTableData,
+      readSupplyTableData: readSupplyTableData,
       downloadMeasurementArchive: downloadMeasurementArchive,
       getManualRequestChoices: getManualRequestChoices,
       getManualRequestOrderDirectory: getManualRequestOrderDirectory,
