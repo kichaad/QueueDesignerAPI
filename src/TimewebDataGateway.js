@@ -3,6 +3,8 @@
  * Preserve the actual GAS UI until the PHP projection is verified against it.
  */
 function readSupplierOrderTableData() {
+  // Transitional maintenance stays on the existing writer until its own migration.
+  SupplierOrderService.reconcileMaterialStatuses();
   const spreadsheet = SheetService.getSpreadsheet();
   const timezone = Session.getScriptTimeZone();
   const read = (name, count, dateColumns) => {
@@ -18,6 +20,7 @@ function readSupplierOrderTableData() {
   };
   return {
     schema: 1,
+    appVersion: CONFIG.APP_VERSION,
     orders: read(CONFIG.SHEETS.SUPPLIER_ORDERS, 10, [9]),
     lines: read(CONFIG.SHEETS.SUPPLIER_ORDER_LINES, 13, [12]),
     suppliers: read(CONFIG.SHEETS.SUPPLIERS, 3, [])
