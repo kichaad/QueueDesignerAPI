@@ -51,9 +51,11 @@ function readSupplyTableData() {
     const headers = values[0].map(value => String(value || '').trim());
     const fields = ['Договор', 'Клиент', 'Изделие', 'Дедлайн'].map(name => headers.indexOf(name));
     if (fields.some(index => index < 0)) throw new Error('ORDER_SCHEMA|Не найдены колонки изделий.');
-    return values.slice(1).map(row => fields.map((index, field) => {
+    return values.slice(1).map(row => fields.map((index) => {
       const value = row[index];
-      return value instanceof Date && field === 3 ? Utilities.formatDate(value, timezone, 'yyyy-MM-dd') : value;
+      // SupplyService returns this value through JSON.stringify, which uses an
+      // ISO timestamp for a Date. Preserve that wire contract exactly.
+      return value instanceof Date ? value.toISOString() : value;
     }));
   };
   return {
