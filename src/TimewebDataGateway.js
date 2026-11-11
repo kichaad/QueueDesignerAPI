@@ -117,24 +117,30 @@ class TimewebSheetMirror {
       supplier: { name: CONFIG.SHEETS.SUPPLIERS, width: 6 },
       route: { name: CONFIG.SHEETS.CONSUMABLES, width: 7 }
     };
-    // Validate the entire packet before making any sheet changes.
+    const rowsOf = change => Object.prototype.hasOwnProperty.call(change, 'rows')
+      ? change.rows : change.row === null ? [] : [change.row];
+    let totalRows = 0;
+    // Validate whole groups before writing: duplicate source IDs are legitimate
+    // in imported snapshots; each packet replaces the entire SQL-owned group.
     packet.changes.forEach(change => {
       const definition = change && Object.prototype.hasOwnProperty.call(definitions, change.table) && definitions[change.table];
-      if (!definition || typeof change.id !== 'string' || !change.id || Array.from(change.id).length > 191 ||
-          (change.row !== null && (!Array.isArray(change.row) || change.row.length > definition.width ||
-            change.row.some(value => value !== null && !['string', 'number', 'boolean'].includes(typeof value))))) {
+      if (!definition || typeof change.id !== 'string' || !change.id || Array.from(change.id).length > (change.table === 'supplier' ? 512 : 191) ||
+          (Object.prototype.hasOwnProperty.call(change, 'rows') && Object.prototype.hasOwnProperty.call(change, 'row'))) {
         throw new Error('BAD_REQUEST|Некорректная строка зеркалирования.');
       }
-      if (change.row !== null && ['supply', 'plate'].includes(change.table) && String(change.row[0]) !== change.id) {
-        throw new Error('BAD_REQUEST|ID строки не совпадает.');
-      }
-      if (change.table === 'supplier' && change.row !== null && this.normal(change.row[0]) !== this.normal(change.id)) {
-        throw new Error('BAD_REQUEST|Имя поставщика не совпадает.');
-      }
-      if (change.table === 'route' && (change.row === null || change.row.length !== 4 ||
-          this.routeKey(change.row[0], change.row[1]) !== change.id)) {
-        throw new Error('BAD_REQUEST|Ключ маршрута не совпадает.');
-      }
+      const rows = rowsOf(change);
+      if (!Array.isArray(rows)) throw new Error('BAD_REQUEST|Некорректная группа строк.');
+      totalRows += rows.length;
+      if (totalRows > 20000) throw new Error('BAD_REQUEST|Слишком много строк.');
+      rows.forEach(row => {
+        if (!Array.isArray(row) || row.length > definition.width ||
+            row.some(value => value !== null && !['string', 'number', 'boolean'].includes(typeof value))) {
+          throw new Error('BAD_REQUEST|Некорректная строка зеркалирования.');
+        }
+        if (['supply', 'plate'].includes(change.table) && String(row[0]) !== change.id) throw new Error('BAD_REQUEST|ID строки не совпадает.');
+        if (change.table === 'supplier' && this.normal(row[0]) !== this.normal(change.id)) throw new Error('BAD_REQUEST|Имя поставщика не совпадает.');
+        if (change.table === 'route' && (row.length !== 4 || this.routeKey(row[0], row[1]) !== change.id)) throw new Error('BAD_REQUEST|Ключ маршрута не совпадает.');
+      });
     });
     const lock = LockService.getScriptLock();
     lock.waitLock(30000);
@@ -167,19 +173,24 @@ class TimewebSheetMirror {
         }
         const key = change.table === 'supplier' ? this.normal(change.id) : change.id;
         const matches = plan.index.get(key) || [];
-        if (matches.length > 1) throw new Error('SYNC_DUPLICATE_ID|Исправьте дублирующий ID в зеркале.');
-        if (change.row === null) {
-          if (matches.length) { plan.rows[matches[0]] = Array(plan.width).fill(''); plan.dirty.add(matches[0]); plan.index.delete(key); }
-        } else {
+        const sources = rowsOf(change);
+        const indices = [];
+        sources.forEach((input, position) => {
           const source = change.table === 'route'
-            ? [change.row[0], change.row[1], this.normal(change.row[0]), this.normal(change.row[1]).replace(/\s+/g, ''),
-              change.row[2] ? 'Да' : '', change.row[3] ? 'Да' : '', ''] : change.row;
-          const row = Array.from({ length: plan.width }, (_, index) => source[index] == null ? '' : source[index]);
-          const index = matches.length ? matches[0] : plan.rows.length;
+            ? [input[0], input[1], this.normal(input[0]), this.normal(input[1]).replace(/\s+/g, ''),
+              input[2] ? 'Да' : '', input[3] ? 'Да' : '', ''] : input;
+          const index = position < matches.length ? matches[position] : plan.rows.length;
+          const previous = plan.rows[index] || [];
+          const row = Array.from({ length: plan.width }, (_, column) =>
+            change.table === 'supplier' && column >= input.length ? previous[column] || '' : source[column] == null ? '' : source[column]);
           plan.rows[index] = row;
-          plan.index.set(key, [index]);
           plan.dirty.add(index);
-        }
+          indices.push(index);
+        });
+        matches.slice(sources.length).forEach(index => {
+          plan.rows[index] = Array(plan.width).fill(''); plan.dirty.add(index);
+        });
+        if (indices.length) plan.index.set(key, indices); else plan.index.delete(key);
         if (plan.rows.length > 20000) throw new Error('TABLE_TOO_LARGE|Зеркало превышает лимит строк.');
       });
       // All plans are validated before the first write. If Sheets fails midway,
