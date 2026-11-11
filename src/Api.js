@@ -86,6 +86,7 @@ class Api {
       applyTimewebSheetChanges: packet => TimewebSheetMirror.apply(packet),
       applyTimewebProductionOrder: packet => TimewebProductionMirror.apply(packet),
       exportTimewebProductionRows: (offset,limit) => TimewebProductionExport.page(offset,limit),
+      linkTimewebProductionIds: mappings => TimewebProductionMigrationLink.apply(mappings),
       manageTimewebSheetMirror: action => TimewebSheetMirror.manage(action),
       reserveTimewebInvoiceFileId: () => TimewebSheetMirror.reserveInvoiceFileId(),
       downloadMeasurementArchive: downloadMeasurementArchive,
