@@ -261,6 +261,7 @@ function getSupplyImportCandidates(fileName) {
 }
 
 function importSupplySpecification(file, orderKey) {
+  assertSupplierOrderWritable();
   const result = SupplyService.importSpecification(file, orderKey);
   return { result: result, snapshot: SupplyService.getSnapshot() };
 }
@@ -274,31 +275,37 @@ function analyzeSupplySpecification(file, orderKey) {
 }
 
 function saveSupplySpecification(materials, fileName, orderKey, importInfo) {
+  assertSupplierOrderWritable();
   const result = SupplyService.saveSpecification(materials, fileName, orderKey, importInfo);
   return { result: result, snapshot: SupplyService.getSnapshot() };
 }
 
 function changePurchaseStatus(rowId, direction) {
+  assertSupplierOrderWritable();
   const result = SupplyService.changeStatus(rowId, direction);
   return { result: result, snapshot: SupplyService.getSnapshot() };
 }
 
 function setPurchaseStatus(rowId, status) {
+  assertSupplierOrderWritable();
   const result = SupplyService.setStatus(rowId, status);
   return { result: result, snapshot: SupplyService.getSnapshot() };
 }
 
 function setSupplyArticle(rowId, article, expectedArticle) {
+  assertSupplierOrderWritable();
   const result = SupplyService.setArticle(rowId, article, expectedArticle);
   return { result: result, snapshot: SupplyService.getSnapshot() };
 }
 
 function assignSupplySupplier(rowId, supplier) {
+  assertSupplierOrderWritable();
   const result = SupplyService.assignSupplier(rowId, supplier);
   return { result: result, snapshot: SupplyService.getSnapshot() };
 }
 
 function deleteSupplyMaterial(rowId) {
+  assertSupplierOrderWritable();
   const result = SupplyService.deleteMaterial(rowId);
   return { result: result, snapshot: SupplyService.getSnapshot() };
 }
@@ -311,11 +318,13 @@ function getManualRequestOrderDirectory() { return SupplyService.getManualReques
 function getManualRequestChoices() { return { orders: SupplyService.getManualRequestOrderDirectory(), clients: EquipmentService.getClients() }; }
 
 function saveManualSupplyRequest(data) {
+  assertSupplierOrderWritable();
   const result = SupplyService.saveManualRequest(data);
   return { result: result, snapshot: SupplyService.getSnapshot() };
 }
 
 function clearSupplyOrderMaterials(orderKey) {
+  assertSupplierOrderWritable();
   const result = SupplyService.clearOrderMaterials(orderKey);
   return { result: result, snapshot: SupplyService.getSnapshot() };
 }
