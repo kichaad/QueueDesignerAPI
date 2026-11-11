@@ -44,7 +44,7 @@ class TimewebProductionMirror {
       if (orderIdCol >= 0 && String(row[orderIdCol] || "") === String(packet.productionOrderId)) byId.push(i+1);
       if (["Договор","Клиент","Изделие"].map(name => String(row[index(name)] || "")).join("|") === key) byKey.push(i+1);
     }
-    if (byId.length > 1 || byKey.length > 1 || (byId.length && byKey.length && byId[0] !== byKey[0])) {
+    if (byId.length > 1 || (!byId.length && byKey.length > 1) || (byId.length && byKey.length && !byKey.includes(byId[0]))) {
       throw new Error("SYNC_CONFLICT|Неоднозначный ID или дублирующий бизнес-ключ.");
     }
     if (byId.length && !byKey.length) {
@@ -71,12 +71,15 @@ class TimewebProductionMirror {
     rows.forEach((row,i)=> {
       if(i>0 && legacyColumns.every((col,j)=>String(row[col-1] || "")===packet.fields[["Договор","Клиент","Изделие"][j]]))matches.push(i+1);
     });
-    if(matches.length!==1)throw new Error("SYNC_CONFLICT|Не удалось однозначно найти строку заказа после создания.");
-    const currentId=rows[matches[0]-1][idColumn-1];
+    // Existing immutable SQL ID disambiguates historical duplicate names.
+    const chosen=byId.length===1?byId[0]:(matches.length===1?matches[0]:null);
+    if(!chosen || (byId.length===1 && !matches.includes(chosen)))
+      throw new Error("SYNC_CONFLICT|Не удалось однозначно найти строку заказа после создания.");
+    const currentId=rows[chosen-1][idColumn-1];
     if(currentId!=="" && currentId!==null && String(currentId)!==String(packet.productionOrderId)) {
       throw new Error("SYNC_CONFLICT|Строка уже привязана к другому производственному заказу.");
     }
-    idSheet.getRange(matches[0],idColumn).setValue(packet.productionOrderId);
+    idSheet.getRange(chosen,idColumn).setValue(packet.productionOrderId);
     return {productionOrderId:packet.productionOrderId,existing:Boolean(existingRow)};
   }
 }
