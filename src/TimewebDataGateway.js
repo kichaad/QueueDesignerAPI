@@ -67,3 +67,123 @@ function readSupplyTableData() {
     orderDirectory: orderDirectory()
   };
 }
+
+/** SQL mirror receiver. Only Api.handlePost exposes this class, after secret
+ * authentication. No browser-callable global function or business callbacks. */
+class TimewebSheetMirror {
+  static apply(packet) {
+    const properties = PropertiesService.getScriptProperties();
+    if (properties.getProperty('TIMEWEB_SHEET_SYNC_ENABLED') !== 'enabled') {
+      throw new Error('SYNC_DISABLED|Зеркалирование MySQL выключено.');
+    }
+    if (!packet || packet.schema !== 1 || !/^[1-9][0-9]{0,19}$/.test(packet.sequence) ||
+        !Array.isArray(packet.changes) || !packet.changes.length || packet.changes.length > 20000) {
+      throw new Error('BAD_REQUEST|Некорректный пакет зеркалирования.');
+    }
+    const sequence = String(packet.sequence);
+    const definitions = {
+      supply: { name: CONFIG.SHEETS.SUPPLY, width: 29 },
+      plate: { name: CONFIG.SHEETS.PLATE_MATERIALS, width: 19 },
+      supplier: { name: CONFIG.SHEETS.SUPPLIERS, width: 6 },
+      route: { name: CONFIG.SHEETS.CONSUMABLES, width: 7 }
+    };
+    // Validate the entire packet before making any sheet changes.
+    packet.changes.forEach(change => {
+      const definition = change && Object.prototype.hasOwnProperty.call(definitions, change.table) && definitions[change.table];
+      if (!definition || typeof change.id !== 'string' || !change.id || Array.from(change.id).length > 191 ||
+          (change.row !== null && (!Array.isArray(change.row) || change.row.length > definition.width ||
+            change.row.some(value => value !== null && !['string', 'number', 'boolean'].includes(typeof value))))) {
+        throw new Error('BAD_REQUEST|Некорректная строка зеркалирования.');
+      }
+      if (change.row !== null && ['supply', 'plate'].includes(change.table) && String(change.row[0]) !== change.id) {
+        throw new Error('BAD_REQUEST|ID строки не совпадает.');
+      }
+      if (change.table === 'supplier' && change.row !== null && this.normal(change.row[0]) !== this.normal(change.id)) {
+        throw new Error('BAD_REQUEST|Имя поставщика не совпадает.');
+      }
+      if (change.table === 'route' && (change.row === null || change.row.length !== 4 ||
+          this.routeKey(change.row[0], change.row[1]) !== change.id)) {
+        throw new Error('BAD_REQUEST|Ключ маршрута не совпадает.');
+      }
+    });
+    const lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+    try {
+      const last = properties.getProperty('TIMEWEB_SHEET_SYNC_SEQUENCE') || '0';
+      if (sequence.length < last.length || (sequence.length === last.length && sequence <= last)) {
+        return { sequence: sequence, duplicate: true };
+      }
+      const spreadsheet = SheetService.getSpreadsheet();
+      const plans = {};
+      packet.changes.forEach(change => {
+        const definition = definitions[change.table];
+        let plan = plans[change.table];
+        if (!plan) {
+          const sheet = spreadsheet.getSheetByName(definition.name);
+          if (!sheet || sheet.getLastRow() < 1 || sheet.getMaxColumns() < definition.width) {
+            throw new Error('SYNC_SCHEMA|Лист зеркала не подготовлен.');
+          }
+          if (sheet.getLastRow() > 20001) throw new Error('TABLE_TOO_LARGE|Зеркало превышает лимит строк.');
+          const rows = sheet.getLastRow() > 1
+            ? sheet.getRange(2, 1, sheet.getLastRow() - 1, definition.width).getValues() : [];
+          const index = new Map();
+          rows.forEach((row, position) => {
+            const key = change.table === 'supplier' ? this.normal(row[0]) :
+              change.table === 'route' ? this.routeKey(row[0], row[1]) : String(row[0]);
+            if (!key) return;
+            index.set(key, (index.get(key) || []).concat(position));
+          });
+          plan = plans[change.table] = { sheet: sheet, rows: rows, width: definition.width, dirty: new Set(), index: index };
+        }
+        const key = change.table === 'supplier' ? this.normal(change.id) : change.id;
+        const matches = plan.index.get(key) || [];
+        if (matches.length > 1) throw new Error('SYNC_DUPLICATE_ID|Исправьте дублирующий ID в зеркале.');
+        if (change.row === null) {
+          if (matches.length) { plan.rows[matches[0]] = Array(plan.width).fill(''); plan.dirty.add(matches[0]); plan.index.delete(key); }
+        } else {
+          const source = change.table === 'route'
+            ? [change.row[0], change.row[1], this.normal(change.row[0]), this.normal(change.row[1]).replace(/\s+/g, ''),
+              change.row[2] ? 'Да' : '', change.row[3] ? 'Да' : '', ''] : change.row;
+          const row = Array.from({ length: plan.width }, (_, index) => source[index] == null ? '' : source[index]);
+          const index = matches.length ? matches[0] : plan.rows.length;
+          plan.rows[index] = row;
+          plan.index.set(key, [index]);
+          plan.dirty.add(index);
+        }
+        if (plan.rows.length > 20000) throw new Error('TABLE_TOO_LARGE|Зеркало превышает лимит строк.');
+      });
+      // All plans are validated before the first write. If Sheets fails midway,
+      // retry reapplies these absolute rows/deletions without creating new IDs.
+      Object.values(plans).forEach(plan => {
+        const indices = Array.from(plan.dirty).sort((a, b) => a - b);
+        if (!indices.length) return;
+        const required = indices[indices.length - 1] + 2;
+        if (plan.sheet.getMaxRows() < required) {
+          plan.sheet.insertRowsAfter(plan.sheet.getMaxRows(), required - plan.sheet.getMaxRows());
+        }
+        // Write only changed rows, keeping formulas/formatting in unrelated rows.
+        for (let offset = 0; offset < indices.length;) {
+          const first = indices[offset];
+          let last = first;
+          while (++offset < indices.length && indices[offset] === last + 1) last = indices[offset];
+          const literal = plan.rows.slice(first, last + 1).map(row => row.map(value =>
+            typeof value === 'string' && /^[=']/.test(value) ? "'" + value : value));
+          plan.sheet.getRange(first + 2, 1, literal.length, plan.width).setValues(literal);
+        }
+      });
+      SpreadsheetApp.flush();
+      properties.setProperty('TIMEWEB_SHEET_SYNC_SEQUENCE', sequence);
+      return { sequence: sequence, duplicate: false };
+    } finally {
+      lock.releaseLock();
+    }
+  }
+
+  static normal(value) {
+    return String(value == null ? '' : value).replace(/\u00a0/g, ' ').trim().toLowerCase().replace(/\s+/g, ' ');
+  }
+
+  static routeKey(name, article) {
+    return Array.from(this.normal(article).replace(/\s+/g, '') || this.normal(name)).slice(0, 191).join('');
+  }
+}
