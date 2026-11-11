@@ -278,6 +278,7 @@ class SupplierOrderService {
   }
 
   static reconcileMaterialStatuses() {
+    if (Number(PropertiesService.getScriptProperties().getProperty('TIMEWEB_SUPPLIER_MAINTENANCE_UNTIL') || 0) > Date.now()) return { updated: 0 };
     const cache = CacheService.getScriptCache();
     const cacheKey = "supplier-order-material-status-sync-v1";
     if (cache.get(cacheKey)) return { updated: 0 };
