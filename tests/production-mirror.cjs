@@ -33,7 +33,9 @@ function fixture(enabled=true,duplicate=false) {
       appendOrder(order){
         if(state.rows.some(r=>r.slice(0,3).join('|')===
           [order.contract,order.client,order.product].join('|')))throw Error('Duplicate order');
-        state.rows.push([order.contract,order.client,order.product,order.manager]);
+        const row=Array(state.headers.length).fill('');
+        row[0]=order.contract;row[1]=order.client;row[2]=order.product;row[3]=order.manager;
+        state.rows.push(row);
       }
     },
     CONFIG:{SHEETS:{ORDERS:'Изделия'}}
