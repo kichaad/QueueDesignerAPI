@@ -328,7 +328,14 @@ function getSupplierOrderCandidates(supplier, productKeys) {
   return SupplierOrderService.getCandidates(supplier, productKeys);
 }
 
+function assertSupplierOrderWritable() {
+  if (Number(PropertiesService.getScriptProperties().getProperty("TIMEWEB_SUPPLIER_MAINTENANCE_UNTIL") || 0) > Date.now()) {
+    throw new Error("MAINTENANCE|Заказы поставщикам временно синхронизируются. Повторите через несколько минут.");
+  }
+}
+
 function createSupplierOrder(supplier, rowIds) {
+  assertSupplierOrderWritable();
   const result = SupplierOrderService.createFromSupplier(supplier, rowIds);
   return { result: result, snapshot: SupplyService.getSnapshot() };
 }
@@ -337,25 +344,30 @@ function getSupplierOrderDetails(orderId) {
   return SupplierOrderService.getOrderDetails(orderId);
 }
 function saveSupplierOrderDeliveryDates(orderId, payload, clientVersion) {
+  assertSupplierOrderWritable();
   assertClientAppVersion(clientVersion);
   const result = SupplierOrderService.saveDeliveryDates(orderId, payload);
   return { result: result, snapshot: SupplierOrderService.getSnapshot(), appVersion: CONFIG.APP_VERSION };
 }
 function setSupplierOrderLineArticle(orderId, lineIds, article, expectedArticle, clientVersion) {
+  assertSupplierOrderWritable();
   assertClientAppVersion(clientVersion);
   const result = SupplierOrderService.setLineArticle(orderId, lineIds, article, expectedArticle);
   return { result: result, snapshot: SupplierOrderService.getSnapshot(), appVersion: CONFIG.APP_VERSION };
 }
 function setSupplierOrderLineMoney(orderId, lineIds, field, value, expected, clientVersion) {
+  assertSupplierOrderWritable();
   assertClientAppVersion(clientVersion);
   const result = SupplierOrderService.setLineMoney(orderId, lineIds, field, value, expected);
   return { result: result, snapshot: SupplierOrderService.getSnapshot(), appVersion: CONFIG.APP_VERSION };
 }
 function prepareMdmSupplierOrdersExport(orderIds, clientVersion) {
+  assertSupplierOrderWritable();
   assertClientAppVersion(clientVersion);
   return SupplierOrderService.prepareMdmExport(orderIds);
 }
 function completeMdmSupplierOrdersExport(token, clientVersion) {
+  assertSupplierOrderWritable();
   assertClientAppVersion(clientVersion);
   const result = SupplierOrderService.completeMdmExport(token);
   return { result: result, snapshot: SupplierOrderService.getSnapshot(), appVersion: CONFIG.APP_VERSION };
@@ -382,49 +394,60 @@ function getSupplierOrderAddCandidates(orderId) {
   return SupplierOrderService.getCandidates(order.supplier);
 }
 function addSupplierOrderMaterials(orderId, rowIds) {
+  assertSupplierOrderWritable();
   const result = SupplierOrderService.addMaterials(orderId, rowIds);
   return { result: result, snapshot: SupplierOrderService.getSnapshot() };
 }
 function updateSupplierOrderLine(orderId, lineId, quantity, unit) {
+  assertSupplierOrderWritable();
   const result = SupplierOrderService.updateLine(orderId, lineId, quantity, unit);
   return { result: result, snapshot: SupplierOrderService.getSnapshot() };
 }
 function deleteSupplierOrder(orderId, clientVersion) {
+  assertSupplierOrderWritable();
   assertClientAppVersion(clientVersion);
   const result = SupplierOrderService.deleteOrder(orderId);
   return { result: result, snapshot: SupplierOrderService.getSnapshot(), appVersion: CONFIG.APP_VERSION };
 }
 function removeSupplierOrderLines(orderId, lineIds) {
+  assertSupplierOrderWritable();
   const result = SupplierOrderService.removeLines(orderId, lineIds);
   return { result: result, snapshot: SupplierOrderService.getSnapshot() };
 }
 function splitSupplierOrderLines(orderId, lineIds) {
+  assertSupplierOrderWritable();
   const result = SupplierOrderService.splitLinesToNewOrder(orderId, lineIds);
   return { result: result, snapshot: SupplierOrderService.getSnapshot() };
 }
 function setSupplierOrderStatusFast(orderId, status) {
+  assertSupplierOrderWritable();
   const started = Date.now();
   const result = SupplierOrderService.setStatus(orderId, status);
   return { result: result, supplierPatch: { id: result.id, values: { status: result.status } }, appVersion: CONFIG.APP_VERSION, performance: { actionMs: Date.now() - started } };
 }
 function saveSupplierOrderInvoiceNumbersFast(orderId, invoiceNumbers) {
+  assertSupplierOrderWritable();
   const started = Date.now();
   const result = SupplierOrderService.saveInvoiceNumbers(orderId, invoiceNumbers);
   return { result: result, supplierPatch: { id: result.id, values: { invoiceNumbers: result.invoiceNumbers, status: result.status } }, appVersion: CONFIG.APP_VERSION, performance: { actionMs: Date.now() - started } };
 }
 function setSupplierOrderStatus(orderId, status) {
+  assertSupplierOrderWritable();
   const result = SupplierOrderService.setStatus(orderId, status);
   return { result: result, snapshot: SupplierOrderService.getSnapshot() };
 }
 function saveSupplierOrderInvoiceNumbers(orderId, invoiceNumbers) {
+  assertSupplierOrderWritable();
   const result = SupplierOrderService.saveInvoiceNumbers(orderId, invoiceNumbers);
   return { result: result, snapshot: SupplierOrderService.getSnapshot() };
 }
 function saveSupplierOrderTotal(orderId, amount) {
+  assertSupplierOrderWritable();
   const result = SupplierOrderService.saveOrderTotal(orderId, amount);
   return { result: result, snapshot: SupplierOrderService.getSnapshot() };
 }
 function attachSupplierOrderInvoice(orderId, payload) {
+  assertSupplierOrderWritable();
   const result = SupplierInvoiceService.attachQuick(orderId, payload);
   return { result: result, snapshot: SupplierOrderService.getSnapshot() };
 }

@@ -14,15 +14,16 @@ class Sheet {
       getValues: () => this.rows.slice(start - 2, start - 2 + count).map(r => r.slice()),
       setValues: rows => {
         if (fail) { fail = false; throw Error('simulated Sheets outage'); }
-        rows.forEach((row, index) => { this.rows[start - 2 + index] = row.map(v => typeof v === 'string' && v.startsWith("'") ? v.slice(1) : v); });
+        rows.forEach((row, index) => { const target = this.rows[start - 2 + index] || Array(this.width).fill(''); row.forEach((v, i) => { target[col - 1 + i] = typeof v === 'string' && v.startsWith("'") ? v.slice(1) : v; }); this.rows[start - 2 + index] = target; });
       }
     };
   }
 }
 const supply = new Sheet(29), plate = new Sheet(19), suppliers = new Sheet(6), routes = new Sheet(7);
-const sheets = { supply, plate, suppliers, routes };
+const orders = new Sheet(11), lines = new Sheet(13);
+const sheets = { supply, plate, suppliers, routes, orders, lines };
 const context = vm.createContext({
-  CONFIG: { SHEETS: { SUPPLY: 'supply', PLATE_MATERIALS: 'plate', SUPPLIERS: 'suppliers', CONSUMABLES: 'routes' } },
+  CONFIG: { SHEETS: { SUPPLY: 'supply', PLATE_MATERIALS: 'plate', SUPPLIERS: 'suppliers', CONSUMABLES: 'routes', SUPPLIER_ORDERS: 'orders', SUPPLIER_ORDER_LINES: 'lines' } },
   PropertiesService: { getScriptProperties: () => ({ getProperty: k => properties.get(k), setProperty: (k, v) => properties.set(k, v) }) },
   LockService: { getScriptLock: () => ({ waitLock: () => { assert(!locked); locked = true; }, releaseLock: () => { locked = false; } }) },
   SheetService: { getSpreadsheet: () => ({ getSheetByName: name => sheets[name] }) },
@@ -68,8 +69,25 @@ console.log('Sheet mirror: upsert/delete, literal text, retry, sequence fence, v
 
 assert.equal(context.mirror.manage('status').enabled, false);
 assert.equal(context.mirror.manage('enable').enabled, true);
+assert.equal(context.mirror.manage('supplier-maintenance-on').supplierMaintenance, true);
+assert.equal(context.mirror.manage('supplier-maintenance-off').supplierMaintenance, false);
 assert.equal(context.mirror.manage('export').tables.plate[0][0], 'p1');
 assert.equal(context.mirror.manage('disable').enabled, false);
 assert.throws(() => context.mirror.manage('unknown'), /BAD_REQUEST/);
 assert(!locked);
 console.log('Mirror administration enable/disable/status/export verified');
+
+properties.set('TIMEWEB_SHEET_SYNC_ENABLED', 'enabled');
+apply('10', [row('supplier_order', 'o1', ['o1', 'ЗП-1', 'Blum']), row('supplier_line', 'l1', ['l1', 'o1', 'm1'])]);
+assert.equal(orders.rows[0][0], 'o1'); assert.equal(lines.rows[0][1], 'o1');
+assert(apply('10', [row('supplier_order', 'o1', ['o1', 'duplicate'])]).duplicate);
+assert.throws(() => apply('11', [row('supplier_line', 'l2', ['wrong'])]), /ID/);
+console.log('Supplier order mirror validates and idempotently applies order and line IDs');
+
+orders.rows[0][6] = '=preserved-formula'; orders.rows[0][10] = true;
+apply('11', [{table:'supplier_order_patch',id:'o1',fields:{status:'Оплачен',invoiceNumbers:'A1',updatedAt:'2026-11-11T10:00:00Z'}}]);
+assert.equal(orders.rows[0][3], 'Оплачен'); assert.equal(orders.rows[0][8], 'A1');
+assert.equal(orders.rows[0][6], '=preserved-formula'); assert.equal(orders.rows[0][10], true);
+assert.throws(() => apply('12', [{table:'supplier_order_patch',id:'o1',fields:{status:'Оплачен',invoiceNumbers:'A1',updatedAt:'x',unknown:'0'}}]), /Некорректное/);
+assert.throws(() => apply('12', [{table:'supplier_order_patch',id:'missing',fields:{status:'Оплачен',invoiceNumbers:'A1',updatedAt:'x'}}]), /SYNC_ORDER_MISSING/);
+console.log('Order patches preserve unrelated cells and validate the target');
