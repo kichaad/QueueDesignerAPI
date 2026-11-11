@@ -58,3 +58,11 @@ assert(!locked);
 properties.set('TIMEWEB_SHEET_SYNC_ENABLED', '');
 assert.throws(() => apply('7', []), /SYNC_DISABLED/);
 console.log('Sheet mirror: upsert/delete, literal text, retry, sequence fence, validation and lock release verified');
+
+assert.equal(context.mirror.manage('status').enabled, false);
+assert.equal(context.mirror.manage('enable').enabled, true);
+assert.equal(context.mirror.manage('export').tables.plate[0][0], 'p1');
+assert.equal(context.mirror.manage('disable').enabled, false);
+assert.throws(() => context.mirror.manage('unknown'), /BAD_REQUEST/);
+assert(!locked);
+console.log('Mirror administration enable/disable/status/export verified');

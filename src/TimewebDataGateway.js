@@ -71,6 +71,36 @@ function readSupplyTableData() {
 /** SQL mirror receiver. Only Api.handlePost exposes this class, after secret
  * authentication. No browser-callable global function or business callbacks. */
 class TimewebSheetMirror {
+  static manage(action) {
+    if (!['status', 'export', 'enable', 'disable'].includes(action)) throw new Error('BAD_REQUEST|Unknown mirror action');
+    const lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+    try {
+      const properties = PropertiesService.getScriptProperties();
+      if (action === 'enable' || action === 'disable') {
+        properties.setProperty('TIMEWEB_SHEET_SYNC_ENABLED', action === 'enable' ? 'enabled' : 'disabled');
+      }
+      const result = {
+        schema: 1,
+        enabled: properties.getProperty('TIMEWEB_SHEET_SYNC_ENABLED') === 'enabled',
+        sequence: properties.getProperty('TIMEWEB_SHEET_SYNC_SEQUENCE') || '0'
+      };
+      if (action === 'export') {
+        const spreadsheet = SheetService.getSpreadsheet();
+        const definitions = { supply: [CONFIG.SHEETS.SUPPLY, 29], plate: [CONFIG.SHEETS.PLATE_MATERIALS, 19],
+          supplier: [CONFIG.SHEETS.SUPPLIERS, 6], route: [CONFIG.SHEETS.CONSUMABLES, 7] };
+        result.tables = {};
+        Object.entries(definitions).forEach(([key, [name, width]]) => {
+          const sheet = spreadsheet.getSheetByName(name);
+          if (!sheet || sheet.getLastRow() < 1 || sheet.getMaxColumns() < width) throw new Error('SYNC_SCHEMA|Mirror sheet missing');
+          if (sheet.getLastRow() > 20001) throw new Error('TABLE_TOO_LARGE|Mirror sheet too large');
+          result.tables[key] = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, width).getValues() : [];
+        });
+      }
+      return result;
+    } finally { lock.releaseLock(); }
+  }
+
   static apply(packet) {
     const properties = PropertiesService.getScriptProperties();
     if (properties.getProperty('TIMEWEB_SHEET_SYNC_ENABLED') !== 'enabled') {
