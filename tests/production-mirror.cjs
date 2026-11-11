@@ -4,8 +4,8 @@ const vm=require('node:vm');
 
 function fixture(enabled=true,duplicate=false) {
   const state={
-    headers:['Договор','Клиент','Изделие','Менеджер'],
-    rows:[['44RM26','Клиент','Кухня','Менеджер']]
+    headers:['Договор','Клиент','Изделие','Менеджер','Этап','Статус','Очередность'],
+    rows:[['44RM26','Клиент','Кухня','Менеджер','ТЗ','',10]]
   };
   if(duplicate)state.rows.push([...state.rows[0]]);
   const range=(row,column,height=1,width=1)=>({
@@ -49,9 +49,17 @@ const packet={
 };
 let app=fixture();
 assert.equal(app.apply(packet).productionOrderId,543);
-assert.equal(app.state.rows[0][4],543);
+assert.equal(app.state.rows[0][7],543);
 assert.equal(app.apply(packet).existing,true);
 assert.equal(app.state.rows.length,1);
+const richer=structuredClone(packet);
+richer.fields['Этап']='КД';
+richer.fields['Статус']='В работе';
+richer.fields['Очередность']=25;
+app.apply(richer);
+assert.equal(app.state.rows[0][4],'КД');
+assert.equal(app.state.rows[0][5],'В работе');
+assert.equal(app.state.rows[0][6],25);
 app=fixture();
 let fresh=structuredClone(packet);fresh.fields['Изделие']='Шкаф';
 assert.equal(app.apply(fresh).existing,false);
