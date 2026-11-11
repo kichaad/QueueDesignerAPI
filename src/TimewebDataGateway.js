@@ -72,7 +72,7 @@ function readSupplyTableData() {
  * authentication. No browser-callable global function or business callbacks. */
 class TimewebSheetMirror {
   static manage(action) {
-    if (!['status', 'export', 'enable', 'disable'].includes(action)) throw new Error('BAD_REQUEST|Unknown mirror action');
+    if (!['status', 'export', 'enable', 'disable', 'orders'].includes(action)) throw new Error('BAD_REQUEST|Unknown mirror action');
     const lock = LockService.getScriptLock();
     lock.waitLock(30000);
     try {
@@ -85,6 +85,17 @@ class TimewebSheetMirror {
         enabled: properties.getProperty('TIMEWEB_SHEET_SYNC_ENABLED') === 'enabled',
         sequence: properties.getProperty('TIMEWEB_SHEET_SYNC_SEQUENCE') || '0'
       };
+      if (action === 'orders') {
+        const spreadsheet = SheetService.getSpreadsheet();
+        const read = (name, width) => {
+          const sheet = spreadsheet.getSheetByName(name);
+          if (!sheet || sheet.getLastRow() < 2) return [];
+          if (sheet.getLastRow() > 20001) throw new Error('TABLE_TOO_LARGE|Order snapshot too large');
+          return sheet.getRange(2, 1, sheet.getLastRow() - 1, width).getValues();
+        };
+        result.orders = read(CONFIG.SHEETS.SUPPLIER_ORDERS, 10);
+        result.lines = read(CONFIG.SHEETS.SUPPLIER_ORDER_LINES, 13);
+      }
       if (action === 'export') {
         const spreadsheet = SheetService.getSpreadsheet();
         const definitions = { supply: [CONFIG.SHEETS.SUPPLY, 29], plate: [CONFIG.SHEETS.PLATE_MATERIALS, 19],
