@@ -54,11 +54,16 @@ class TimewebProductionMirror {
     if (!existingRow) {
       // The existing appender sets defaults, queue position and formulas.
       // It uses its own lock, and checks uniqueness under that lock.
-      SheetService.appendOrder({
-        contract:packet.fields["Договор"], client:packet.fields["Клиент"],
-        product:packet.fields["Изделие"], manager:packet.fields["Менеджер"],
-        constructor:"", duration:1,
-      });
+      // Only the authenticated SQL mirror may append after Google writes
+      // are fenced. Restore the guard in finally, including on exceptions.
+      this._writing=true;
+      try {
+        SheetService.appendOrder({
+          contract:packet.fields["Договор"], client:packet.fields["Клиент"],
+          product:packet.fields["Изделие"], manager:packet.fields["Менеджер"],
+          constructor:"", duration:0.5,
+        });
+      } finally { this._writing=false; }
     }
     const target = sheet;
     const idSheet = SheetService.ensureOrderColumn("ID заказа на производство");
