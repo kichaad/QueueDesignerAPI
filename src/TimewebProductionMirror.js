@@ -15,10 +15,22 @@ class TimewebProductionMirror {
         || !packet.fields || typeof packet.fields !== "object") {
       throw new Error("BAD_REQUEST|Некорректная запись производственного заказа.");
     }
-    const allowed = ["Договор","Клиент","Изделие","Менеджер"];
-    if (Object.keys(packet.fields).some(name => !allowed.concat("ID заказа на производство").includes(name))
-        || !allowed.every(name => typeof packet.fields[name] === "string")
-        || allowed.some(name => packet.fields[name].length > 255)
+    const required=["Договор","Клиент","Изделие","Менеджер"];
+    const allowed=new Set(required.concat([
+      "ID заказа на производство","Этап","Статус","Ответственный",
+      "Конструктор","Очередность","Очередь","Длительность",
+      "Начало","Окончание","Плановая дата","Дни Проформы","Дни КД",
+      "Резерв КД — очередь","Ручной приоритет даты",
+      "Факт. начало работы","Факт. половина начала","Остаток длительности"
+    ]));
+    if (Object.keys(packet.fields).some(name => !allowed.has(name))
+        || !required.every(name => typeof packet.fields[name] === "string")
+        || required.some(name => packet.fields[name].length > 255)
+        || Object.entries(packet.fields).some(([name,value])=>
+             name!=="ID заказа на производство" &&
+             (value===null || !["string","number","boolean"].includes(typeof value)
+              || (typeof value==="string"&&value.length>1000)
+              || (typeof value==="number"&&!Number.isFinite(value))))
         || !packet.fields["Клиент"].trim() || !packet.fields["Изделие"].trim()
         || !packet.fields["Менеджер"].trim()
         || Number(packet.fields["ID заказа на производство"]) !== packet.productionOrderId) {
@@ -47,9 +59,8 @@ class TimewebProductionMirror {
     if (byId.length > 1 || (!byId.length && byKey.length > 1) || (byId.length && byKey.length && !byKey.includes(byId[0]))) {
       throw new Error("SYNC_CONFLICT|Неоднозначный ID или дублирующий бизнес-ключ.");
     }
-    if (byId.length && !byKey.length) {
-      throw new Error("SYNC_CONFLICT|В Google изменён составной ключ заказа.");
-    }
+    // A stable numeric ID permits a later SQL-authoritative rename.
+    // If the new legacy key belongs to some OTHER row, reject the conflict.
     const existingRow = byId[0] || byKey[0];
     if (!existingRow) {
       // The existing appender sets defaults, queue position and formulas.
@@ -78,13 +89,25 @@ class TimewebProductionMirror {
     });
     // Existing immutable SQL ID disambiguates historical duplicate names.
     const chosen=byId.length===1?byId[0]:(matches.length===1?matches[0]:null);
-    if(!chosen || (byId.length===1 && !matches.includes(chosen)))
+    if(!chosen)
       throw new Error("SYNC_CONFLICT|Не удалось однозначно найти строку заказа после создания.");
     const currentId=rows[chosen-1][idColumn-1];
     if(currentId!=="" && currentId!==null && String(currentId)!==String(packet.productionOrderId)) {
       throw new Error("SYNC_CONFLICT|Строка уже привязана к другому производственному заказу.");
     }
-    idSheet.getRange(chosen,idColumn).setValue(packet.productionOrderId);
-    return {productionOrderId:packet.productionOrderId,existing:Boolean(existingRow)};
+    // Only SQL-owned fields are patched; unrelated formulas, cell styles
+    // and reports are untouched. Retries write absolute identical values.
+    const updated=[]; const missing=[];
+    Object.entries(packet.fields).forEach(([name,value])=>{
+      const col=currentHeaders.indexOf(name);
+      if(col<0){missing.push(name);return;}
+      const literal=typeof value==="string" && /^[=']/u.test(value) ? "'"+value : value;
+      if(String(rows[chosen-1][col]??'')!==String(literal)){
+        idSheet.getRange(chosen,col+1).setValue(literal);
+        updated.push(name);
+      }
+    });
+    return {productionOrderId:packet.productionOrderId,existing:Boolean(existingRow),
+      updatedFields:updated.length,skippedMissingColumns:missing.filter(x=>x!=="ID заказа на производство")};
   }
 }
