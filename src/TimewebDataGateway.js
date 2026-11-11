@@ -102,7 +102,7 @@ class TimewebSheetMirror {
   }
 
   static manage(action) {
-    if (!['status', 'export', 'enable', 'disable', 'orders'].includes(action)) throw new Error('BAD_REQUEST|Unknown mirror action');
+    if (!['status', 'export', 'enable', 'disable', 'orders', 'supplier-maintenance-on', 'supplier-maintenance-off'].includes(action)) throw new Error('BAD_REQUEST|Unknown mirror action');
     const lock = LockService.getScriptLock();
     lock.waitLock(30000);
     try {
@@ -110,10 +110,14 @@ class TimewebSheetMirror {
       if (action === 'enable' || action === 'disable') {
         properties.setProperty('TIMEWEB_SHEET_SYNC_ENABLED', action === 'enable' ? 'enabled' : 'disabled');
       }
+      if (action === 'supplier-maintenance-on' || action === 'supplier-maintenance-off') {
+        properties.setProperty('TIMEWEB_SUPPLIER_MAINTENANCE_UNTIL', action === 'supplier-maintenance-on' ? String(Date.now() + 600000) : '0');
+      }
       const result = {
         schema: 1,
         enabled: properties.getProperty('TIMEWEB_SHEET_SYNC_ENABLED') === 'enabled',
-        sequence: properties.getProperty('TIMEWEB_SHEET_SYNC_SEQUENCE') || '0'
+        sequence: properties.getProperty('TIMEWEB_SHEET_SYNC_SEQUENCE') || '0',
+        supplierMaintenance: Number(properties.getProperty('TIMEWEB_SUPPLIER_MAINTENANCE_UNTIL') || 0) > Date.now()
       };
       if (action === 'orders') {
         const spreadsheet = SheetService.getSpreadsheet();

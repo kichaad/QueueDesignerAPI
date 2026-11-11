@@ -29,6 +29,7 @@ jobs:
       - run: node tests/delivery-dates.cjs
       - run: node tests/timeweb-sheet-mirror.cjs
       - run: node tests/timeweb-invoice.cjs
+      - run: node tests/supplier-maintenance.cjs
       - name: Verify access and optionally publish
         shell: bash
         env:

@@ -69,6 +69,8 @@ console.log('Sheet mirror: upsert/delete, literal text, retry, sequence fence, v
 
 assert.equal(context.mirror.manage('status').enabled, false);
 assert.equal(context.mirror.manage('enable').enabled, true);
+assert.equal(context.mirror.manage('supplier-maintenance-on').supplierMaintenance, true);
+assert.equal(context.mirror.manage('supplier-maintenance-off').supplierMaintenance, false);
 assert.equal(context.mirror.manage('export').tables.plate[0][0], 'p1');
 assert.equal(context.mirror.manage('disable').enabled, false);
 assert.throws(() => context.mirror.manage('unknown'), /BAD_REQUEST/);
