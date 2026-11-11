@@ -599,6 +599,9 @@ function getClaimCandidates() {
 }
 
 function runQueueAction(actionName, args, section, clientVersion) {
+  if (PropertiesService.getScriptProperties().getProperty('TIMEWEB_PRODUCTION_GOOGLE_WRITES_DISABLED') === 'enabled') {
+    throw new Error('SQL_MASTER|Действия с заказами выполняются в PHP/MySQL.');
+  }
   assertClientAppVersion(clientVersion);
   SheetService.resetOrderContexts();
   PerformanceService.start(actionName, section);
