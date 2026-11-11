@@ -87,14 +87,15 @@ class TimewebSheetMirror {
       };
       if (action === 'orders') {
         const spreadsheet = SheetService.getSpreadsheet();
-        const read = (name, width) => {
+        const read = (name, width, dateColumns) => {
           const sheet = spreadsheet.getSheetByName(name);
           if (!sheet || sheet.getLastRow() < 2) return [];
           if (sheet.getLastRow() > 20001) throw new Error('TABLE_TOO_LARGE|Order snapshot too large');
-          return sheet.getRange(2, 1, sheet.getLastRow() - 1, width).getValues();
+          return sheet.getRange(2, 1, sheet.getLastRow() - 1, width).getValues().map(row => row.map((value, index) =>
+            value instanceof Date && dateColumns.includes(index) ? Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd') : value));
         };
-        result.orders = read(CONFIG.SHEETS.SUPPLIER_ORDERS, 10);
-        result.lines = read(CONFIG.SHEETS.SUPPLIER_ORDER_LINES, 13);
+        result.orders = read(CONFIG.SHEETS.SUPPLIER_ORDERS, 10, [9]);
+        result.lines = read(CONFIG.SHEETS.SUPPLIER_ORDER_LINES, 13, [12]);
       }
       if (action === 'export') {
         const spreadsheet = SheetService.getSpreadsheet();
