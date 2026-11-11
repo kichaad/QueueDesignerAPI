@@ -3,6 +3,15 @@
  */
 class SheetService {
 
+  // Cutover safety: the primary order sheet is a read-only SQL mirror after
+  // explicit operator fencing. The authenticated mirror receiver may append
+  // a row, but application CRUD must use the PHP/MySQL master.
+  static assertProductionSheetWritable() {
+    const frozen=PropertiesService.getScriptProperties().getProperty("TIMEWEB_PRODUCTION_GOOGLE_WRITES_DISABLED")==="enabled";
+    const mirror=typeof TimewebProductionMirror!=="undefined" && TimewebProductionMirror._writing===true;
+    if(frozen&&!mirror)throw new Error("SQL_MASTER|Изменения заказов выполняются только в PHP/MySQL.");
+  }
+
   static getSpreadsheet() {
     if (!this._spreadsheet) {
       this._spreadsheet = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
@@ -799,6 +808,7 @@ class SheetService {
    * Обновляет несколько полей одновременно
    */
   static updateFields(key, fields) {
+    this.assertProductionSheetWritable();
     const context = this.getOrderContext(key);
     const missing = Object.keys(fields || {}).filter(fieldName => !context.columns[fieldName]);
     if (missing.length) {
@@ -832,6 +842,7 @@ class SheetService {
    * небезопасно — вызывающий код должен передать точный номер строки.
    */
   static updateFieldsAtRow(rowNumber, fields) {
+    this.assertProductionSheetWritable();
 
     const sheet = Object.prototype.hasOwnProperty.call(fields, "Статус")
       ? this.ensureOrderColumn("Статус")
@@ -851,6 +862,7 @@ class SheetService {
   }
 
   static appendOrder(order) {
+    this.assertProductionSheetWritable();
     const lock = LockService.getScriptLock();
     lock.waitLock(30000);
 
@@ -1014,6 +1026,7 @@ class SheetService {
   }
 
   static saveQueueAndCalendar(orders) {
+    this.assertProductionSheetWritable();
 
     const sheet = this.getSheet(CONFIG.SHEETS.ORDERS);
     const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
