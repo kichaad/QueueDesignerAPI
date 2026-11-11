@@ -85,6 +85,7 @@ class Api {
       readSupplyTableData: readSupplyTableData,
       applyTimewebSheetChanges: packet => TimewebSheetMirror.apply(packet),
       manageTimewebSheetMirror: action => TimewebSheetMirror.manage(action),
+      reserveTimewebInvoiceFileId: () => TimewebSheetMirror.reserveInvoiceFileId(),
       downloadMeasurementArchive: downloadMeasurementArchive,
       getManualRequestChoices: getManualRequestChoices,
       getManualRequestOrderDirectory: getManualRequestOrderDirectory,
