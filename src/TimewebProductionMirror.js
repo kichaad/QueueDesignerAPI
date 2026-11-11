@@ -92,7 +92,7 @@ class TimewebProductionMirror {
     if(!chosen)
       throw new Error("SYNC_CONFLICT|Не удалось однозначно найти строку заказа после создания.");
     const currentId=rows[chosen-1][idColumn-1];
-    if(currentId!=="" && currentId!==null && String(currentId)!==String(packet.productionOrderId)) {
+    if(currentId!=="" && currentId!==null && currentId!==undefined && String(currentId)!==String(packet.productionOrderId)) {
       throw new Error("SYNC_CONFLICT|Строка уже привязана к другому производственному заказу.");
     }
     // Only SQL-owned fields are patched; unrelated formulas, cell styles
