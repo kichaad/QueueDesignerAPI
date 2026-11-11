@@ -5,6 +5,10 @@ on:
       - 'src/TimewebProductionMirror.js'
       - 'src/TimewebProductionExport.js'
       - 'tests/production-mirror.cjs'
+      - 'tests/production-migration-link.cjs'
+      - 'src/TimewebProductionMigrationLink.js'
+      - 'src/SheetService.js'
+      - 'src/Code.js'
       - '.github/workflows/production-mirror-tests.yml'
   workflow_dispatch:
 permissions:
@@ -19,3 +23,5 @@ jobs:
           node-version: '22'
       - run: node --check src/TimewebProductionMirror.js
       - run: node tests/production-mirror.cjs
+      - run: node --check src/TimewebProductionMigrationLink.js
+      - run: node tests/production-migration-link.cjs
