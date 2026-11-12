@@ -12,6 +12,36 @@ class SheetService {
     if(frozen&&!mirror)throw new Error("SQL_MASTER|Изменения заказов выполняются только в PHP/MySQL.");
   }
 
+  // Reentrant within one Apps Script execution, shared across every production writer.
+  static productionLock() {
+    return {
+      waitLock: timeout => {
+        if(!SheetService._writeDepth){SheetService._writeLock=LockService.getScriptLock();SheetService._writeLock.waitLock(timeout);}
+        SheetService._writeDepth=(SheetService._writeDepth||0)+1;
+      },
+      releaseLock: () => {
+        SheetService._writeDepth=Math.max(0,(SheetService._writeDepth||0)-1);
+        if(!SheetService._writeDepth&&SheetService._writeLock){SheetService._writeLock.releaseLock();SheetService._writeLock=null;}
+      }
+    };
+  }
+  static assertConstructorRowWritable(sheet,rowNumber,fields) {
+    if(typeof TimewebConstructorSql==='undefined'||!TimewebConstructorSql.frozen())return;
+    // Drive-folder metadata belongs to file storage and never changes queue state.
+    if(Object.keys(fields||{}).every(k=>k==='Папка Google Drive'))return;
+    const columns=this.getColumns(sheet),col=columns['Этап'];
+    let stage=col?String(sheet.getRange(rowNumber,col).getValue()||'').trim():'';
+    if(TimewebConstructorSql.stages().includes(stage)){
+      const headers=sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0];
+      const row=sheet.getRange(rowNumber,1,1,sheet.getLastColumn()).getValues()[0],fieldsByName={};
+      headers.forEach((h,i)=>{fieldsByName[String(h||'').trim()]=row[i];});
+      const effective=OrderService.resolveOverallStage(OrderMapper.map(fieldsByName));
+      if(effective)stage=effective.stage;
+    }
+    if(TimewebConstructorSql.stages().includes(stage)||TimewebConstructorSql.stages().includes(String((fields||{})['Этап']||'').trim()))
+      throw new Error('SQL_MASTER|Очередь конструкторов изменяется только на app.dcw.moscow в SQL.');
+  }
+
   static getSpreadsheet() {
     if (!this._spreadsheet) {
       this._spreadsheet = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
@@ -808,8 +838,11 @@ class SheetService {
    * Обновляет несколько полей одновременно
    */
   static updateFields(key, fields) {
+    const writeLock=this.productionLock();writeLock.waitLock(30000);
+    try {
     this.assertProductionSheetWritable();
     const context = this.getOrderContext(key);
+    this.assertConstructorRowWritable(context.sheet,context.rowNumber,fields);
     const missing = Object.keys(fields || {}).filter(fieldName => !context.columns[fieldName]);
     if (missing.length) {
       this.ensureOrderColumns(missing);
@@ -831,6 +864,8 @@ class SheetService {
     }
     return true;
 
+
+    }finally{writeLock.releaseLock();}
   }
 
   /**
@@ -842,6 +877,8 @@ class SheetService {
    * небезопасно — вызывающий код должен передать точный номер строки.
    */
   static updateFieldsAtRow(rowNumber, fields) {
+    const writeLock=this.productionLock();writeLock.waitLock(30000);
+    try {
     this.assertProductionSheetWritable();
 
     const sheet = Object.prototype.hasOwnProperty.call(fields, "Статус")
@@ -852,6 +889,7 @@ class SheetService {
       throw new Error("Не найдена строка заказа для сохранения.");
     }
 
+    this.assertConstructorRowWritable(sheet,rowNumber,fields);
     const columns = this.getColumns(sheet);
     Object.entries(fields).forEach(([fieldName, value]) => {
       const column = columns[fieldName];
@@ -859,14 +897,18 @@ class SheetService {
     });
 
     return true;
+
+    }finally{writeLock.releaseLock();}
   }
 
   static appendOrder(order) {
     this.assertProductionSheetWritable();
-    const lock = LockService.getScriptLock();
+    const lock = this.productionLock();
     lock.waitLock(30000);
 
     try {
+      this.assertProductionSheetWritable();
+      if(typeof TimewebConstructorSql!=='undefined'&&TimewebConstructorSql.frozen()&&!order.manualClaim)throw new Error('SQL_MASTER|Создание заказов выполняется в SQL.');
       if (order.manualClaim) {
         this.ensureOrderColumn("Ручная рекламация");
         this.ensureOrderColumn("Комментарий рекламации");
@@ -1047,6 +1089,10 @@ class SheetService {
    * Сохранение рассчитанных дат
    */
   static saveCalendar(orders) {
+    const writeLock=this.productionLock();writeLock.waitLock(30000);
+    try {
+    if(typeof TimewebConstructorSql!=='undefined'&&TimewebConstructorSql.frozen()&&orders.some(o=>TimewebConstructorSql.stages().includes(o.stage)))throw new Error('SQL_MASTER|Constructor calendar is SQL-owned.');
+
 
     const sheet = this.getSheet(CONFIG.SHEETS.ORDERS);
 
@@ -1107,5 +1153,7 @@ class SheetService {
 
     });
 
+
+    }finally{writeLock.releaseLock();}
   }
   }

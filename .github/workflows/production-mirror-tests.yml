@@ -8,6 +8,11 @@ on:
       - 'tests/production-migration-link.cjs'
       - 'src/TimewebProductionMigrationLink.js'
       - 'src/SheetService.js'
+      - 'src/TimewebConstructorSql.js'
+      - 'tests/constructor-sql.cjs'
+      - 'src/OrderService.js'
+      - 'src/GoogleDriveService.js'
+      - 'src/Api.js'
       - 'src/Code.js'
       - 'src/Config.js'
       - 'tests/release-version.cjs'
@@ -24,6 +29,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - run: node tests/constructor-sql.cjs
       - run: node scripts/check-source.cjs
       - run: node tests/release-version.cjs
       - run: node --check src/TimewebProductionMirror.js

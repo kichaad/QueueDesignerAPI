@@ -11,5 +11,5 @@ for (const name of fs.readdirSync('src')) {
 for (const name of ['package.json', 'package-lock.json', '.clasp.json', 'src/appsscript.json']) {
   JSON.parse(fs.readFileSync(name, 'utf8'));
 }
-if (count !== 29) throw new Error(`Expected 29 server files, found ${count}; review source inventory`);
+if (count !== 30) throw new Error(`Expected 30 server files, found ${count}; review source inventory`);
 console.log(`Syntax OK: ${count} server files and 4 JSON files. Google runtime and business behavior are not tested.`);

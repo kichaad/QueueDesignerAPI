@@ -245,13 +245,14 @@ function assertClientAppVersion(clientVersion) {
   const client = String(clientVersion || '').trim();
   const server = String(CONFIG.APP_VERSION || '').trim();
   // Keep the currently published Timeweb UI working during the coordinated release.
-  if (client !== server && client !== '2026.11.09.001') {
+  if (client !== server && !['2026.11.09.001','2026.11.12.001'].includes(client)) {
     throw new Error('APP_VERSION_MISMATCH|client=' + (client || 'unknown') + '|server=' + server);
   }
   return client;
 }
 
 function getOrders(section, clientVersion) {
+  if(typeof TimewebConstructorSql!=='undefined'&&TimewebConstructorSql.frozen()&&section==='constructors')throw new Error('SQL_MASTER|Очередь конструкторов находится в SQL на app.dcw.moscow.');
   const responseVersion = assertClientAppVersion(clientVersion);
   const snapshot = OrderService.getOrders(section);
   snapshot.appVersion = responseVersion;
@@ -601,6 +602,7 @@ function getClaimCandidates() {
 }
 
 function runQueueAction(actionName, args, section, clientVersion) {
+  if(typeof TimewebConstructorSql!=='undefined'&&TimewebConstructorSql.frozen()&&section==='constructors')throw new Error('SQL_MASTER|Очередь конструкторов находится в SQL на app.dcw.moscow.');
   if (PropertiesService.getScriptProperties().getProperty('TIMEWEB_PRODUCTION_GOOGLE_WRITES_DISABLED') === 'enabled') {
     throw new Error('SQL_MASTER|Действия с заказами выполняются в PHP/MySQL.');
   }

@@ -80,6 +80,9 @@ class Api {
 
   static getTimewebRpcHandlers() {
     return {
+      manageSqlConstructors: (action,payload) => TimewebConstructorSql.manage(action,payload),
+      applySqlConstructorEvent: packet => TimewebConstructorSql.apply(packet),
+      sqlConstructorFileAction: (method,order,args) => TimewebConstructorSql.fileAction(method,order,args),
       getOrders: getOrders,
       readSupplierOrderTableData: readSupplierOrderTableData,
       readSupplyTableData: readSupplyTableData,
