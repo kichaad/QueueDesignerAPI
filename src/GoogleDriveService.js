@@ -131,8 +131,10 @@ class GoogleDriveService {
     }
 
     const info = this.createOrderFolder(order);
-    SheetService.ensureOrderColumn("Папка Google Drive");
-    SheetService.updateField(order.key, "Папка Google Drive", info.url);
+    if(!order.sqlOwned){
+      SheetService.ensureOrderColumn("Папка Google Drive");
+      SheetService.updateField(order.key, "Папка Google Drive", info.url);
+    }
     order.cloudFolderUrl = info.url;
     return DriveApp.getFolderById(info.id);
   }

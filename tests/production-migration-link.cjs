@@ -22,7 +22,7 @@ function fixture(frozen=true) {
   }})},
   LockService:{getScriptLock:()=>({waitLock(){},releaseLock(){}})},
   CONFIG:{SHEETS:{ORDERS:'Изделия'}},
-  SheetService:{getSpreadsheet:()=>({getSheetByName:()=>sheet}),
+  SheetService:{productionLock:()=>({waitLock(){},releaseLock(){}}),getSpreadsheet:()=>({getSheetByName:()=>sheet}),
     ensureOrderColumn(name){
        if(!state.headers.includes(name)){
          state.headers.push(name);state.rows.forEach(r=>r.push(''));

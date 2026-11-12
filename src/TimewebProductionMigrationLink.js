@@ -7,11 +7,11 @@ class TimewebProductionMigrationLink {
   static apply(mappings) {
     const props=PropertiesService.getScriptProperties();
     if(props.getProperty('TIMEWEB_PRODUCTION_LINK_ENABLED')!=='enabled'
-        ||props.getProperty('TIMEWEB_PRODUCTION_GOOGLE_WRITES_DISABLED')!=='enabled')
+        ||(props.getProperty('TIMEWEB_PRODUCTION_GOOGLE_WRITES_DISABLED')!=='enabled'&&!(typeof TimewebConstructorSql!=='undefined'&&TimewebConstructorSql.frozen())))
       throw new Error('MIGRATION_NOT_FROZEN|Google queue must be frozen before mapping SQL IDs.');
     if(!Array.isArray(mappings)||!mappings.length||mappings.length>100)
       throw new Error('BAD_REQUEST|ID mapping must have between 1 and 100 items.');
-    const lock=LockService.getScriptLock();
+    const lock=SheetService.productionLock();
     lock.waitLock(30000);
     try {
       const sheet=SheetService.getSpreadsheet().getSheetByName(CONFIG.SHEETS.ORDERS);

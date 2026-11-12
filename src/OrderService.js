@@ -749,7 +749,7 @@ class OrderService {
         "Статус Малярка МДФ": "", "Операция Малярка МДФ": "backPainting",
         "Операция Малярки": "" }, "В покраску");
 
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
     try {
       const rows = SheetService.getData(CONFIG.SHEETS.ORDERS);
@@ -808,7 +808,7 @@ class OrderService {
   // Одноразовое исправление рекламаций, созданных до правила, по которому
   // передача в рекламацию завершает монтаж выбранной ветки.
   static migrateClaimedInstallationBranchesToFinished() {
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
     try {
       const orders = SheetService.getObjects(CONFIG.SHEETS.ORDERS).map(row => OrderMapper.map(row));
@@ -1034,7 +1034,7 @@ class OrderService {
     }
     if (data.mode !== "existing") throw new Error("Выберите способ добавления рекламации.");
     if (!comment) throw new Error("Укажите суть рекламации.");
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
     try {
       const order = this.getOrderByKey(data.key);
@@ -1134,7 +1134,7 @@ class OrderService {
   // Ручное, адресное исправление старой ошибочной записи. Метод намеренно не
   // вызывается при чтении snapshot: этап меняется только по явной команде.
   static repairCorpusPaintingLeak(key) {
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
     try {
       const order = SheetService.getObjects(CONFIG.SHEETS.ORDERS)
@@ -1177,7 +1177,7 @@ class OrderService {
       "206RM25|Тимофеева|Кабинет",
       "21RM26|Каспарьян|Кухня"
     ]);
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
     try {
       const orders = SheetService.getObjects(CONFIG.SHEETS.ORDERS).map(row => OrderMapper.map(row));
@@ -1228,7 +1228,7 @@ class OrderService {
       "11RM26|Татанов|Спальня №1 (Дочь)",
       "11RM26|Татанов|Шкафы Мастер Спальня №2"
     ]);
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
     try {
       const orders = SheetService.getObjects(CONFIG.SHEETS.ORDERS).map(row => OrderMapper.map(row));
@@ -1281,7 +1281,7 @@ class OrderService {
     if (!["mdf", "veneer", "corpus-mdf", "painted-ldsp"].includes(normalizedBranch)) {
       throw new Error("Выберите ветку для запуска в Малярке.");
     }
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
     try {
       const orders = SheetService.getObjects(CONFIG.SHEETS.ORDERS).map(row => OrderMapper.map(row));
@@ -1322,7 +1322,7 @@ class OrderService {
     if (!["mdf", "veneer", "corpus-mdf", "painted-ldsp"].includes(normalizedBranch)) {
       throw new Error("Выберите ветку, находящуюся в Буфере Малярки.");
     }
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
     try {
       const orders = SheetService.getObjects(CONFIG.SHEETS.ORDERS).map(row => OrderMapper.map(row));
@@ -1572,7 +1572,7 @@ class OrderService {
   }
 
   static setProformaApprovedDate(key, value) {
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
     try {
       const order = this.getOrderByKey(key);
@@ -1598,7 +1598,7 @@ class OrderService {
     const modes = ["От согласования проформы", "Конкретная дата"];
     if (!modes.includes(mode)) throw new Error("Выберите способ определения дедлайна.");
 
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
     try {
       const order = this.getOrderByKey(key);
@@ -2266,7 +2266,7 @@ class OrderService {
   }
 
   static clearManualOrderDate(key) {
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
     try {
       SheetService.ensureOrderColumn("Ручной приоритет даты");
@@ -2329,7 +2329,7 @@ class OrderService {
       throw new Error("Длительность должна быть кратна 0,5 дня и не меньше 0,5.");
     }
 
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
 
     try {
@@ -2375,7 +2375,7 @@ class OrderService {
   }
 
   static advanceManagerStage(key, targetStage) {
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
 
     try {
@@ -2446,7 +2446,7 @@ class OrderService {
   }
 
   static reviewByTechnologist(key, action, constructor, proformaDaysValue, kdDaysValue) {
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
 
     try {
@@ -2555,7 +2555,7 @@ class OrderService {
 
   static changeOrderQueue(key, newConstructor, targetDate) {
 
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
 
     try {
@@ -2683,7 +2683,7 @@ class OrderService {
   }
 
   static changeWorkStatus(key, action, comment) {
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
 
     try {
@@ -2807,7 +2807,7 @@ class OrderService {
   }
 
   static changeProductionStatus(key, action) {
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
     try {
       const orders = SheetService.getObjects(CONFIG.SHEETS.ORDERS)
@@ -2898,7 +2898,7 @@ class OrderService {
   }
 
   static launchManufacturing(key) {
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
     try {
       const order = this.getOrderByKey(key);
@@ -2956,7 +2956,7 @@ class OrderService {
   // только добавление новой независимой ветки — исключение изменило бы историю
   // уже начатого маршрута.
   static setCorpusTypes(key, selection) {
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
     try {
       const order = this.getOrderByKey(key);
@@ -3013,7 +3013,7 @@ class OrderService {
   }
 
   static changeManufacturingStatus(key, branch, action, comment) {
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
     try {
       let normalizedBranch = String(branch || "").trim().toLowerCase();
@@ -3161,7 +3161,7 @@ class OrderService {
   // СГП не является рабочей операцией: ветка адресно передаётся в монтаж
   // без промежуточного статуса. Общий этап пересчитывается updateRouteFields.
   static sendSgpToInstallation(key, branch) {
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
     try {
       const normalizedBranch = String(branch || "").trim().toLowerCase();
@@ -3195,7 +3195,7 @@ class OrderService {
   }
 
   static saveInstallationComment(key, branch, comment) {
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
     try {
       const normalizedBranch = String(branch || "").trim().toLowerCase();
@@ -3219,7 +3219,7 @@ class OrderService {
   }
 
   static saveClaimComment(key, comment) {
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
     try {
       const note = String(comment || "").trim();
@@ -3237,7 +3237,7 @@ class OrderService {
   }
 
   static changeManufacturingStage(key, branch, targetStage) {
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
     try {
       const allowedStages = ["Запуск", "Распил", "Распил ЛДСП", "Распил МДФ", "Распил Шпон",
@@ -3439,7 +3439,7 @@ class OrderService {
   }
 
   static moveOrderToOverallStage(key, targetStage) {
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
     try {
       const order = this.getOrderByKey(key);
@@ -3456,7 +3456,7 @@ class OrderService {
   }
 
   static sendOrderToClaims(key, branch, comment) {
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
     try {
       const order = this.getOrderByKey(key);
@@ -3497,7 +3497,7 @@ class OrderService {
   }
 
   static completeClaim(key) {
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
     try {
       const order = this.getOrderByKey(key);
@@ -3527,7 +3527,7 @@ class OrderService {
   // Ручное восстановление только исторической корпусной ветки, которая уже
   // физически смонтирована, но отсутствует в полях раздельного маршрута.
   static restoreCompletedCorpusInstallation(key) {
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
     try {
       const order = this.getOrderByKey(key);
@@ -3549,7 +3549,7 @@ class OrderService {
   }
 
   static setMdfFacade(key, enabled) {
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
     try {
       const order = this.getOrderByKey(key);
@@ -3576,7 +3576,7 @@ class OrderService {
   }
 
   static setVeneerFacade(key, enabled) {
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
     try {
       const order = this.getOrderByKey(key);
@@ -3602,7 +3602,7 @@ class OrderService {
   }
 
   static setFacadeMaterials(key, selection) {
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
     try {
       const order = this.getOrderByKey(key);
@@ -3716,7 +3716,7 @@ class OrderService {
   // не была заведена. Команда безопасна для повторного запуска.
   static migrateMissingVeneerFacadeToPaintingBuffer(dryRun) {
     const key = "39RM|Малыш|Прихожая";
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
     try {
       const order = this.getOrderByKey(key);
@@ -3736,7 +3736,7 @@ class OrderService {
   // Площади материалов используются для оценки загрузки производственных
   // потоков. Они не меняют состав фасадов и маршрут заказа.
   static setMaterialAreas(key, areas) {
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
     try {
       const source = areas || {};
@@ -3950,7 +3950,7 @@ class OrderService {
   }
 
   static changeSandingStatus(key, taskType, action, comment, branch) {
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
     try {
       SheetService.ensureOrderColumn("Малярка — ручной приоритет");
@@ -4151,7 +4151,7 @@ class OrderService {
   }
 
   static changePaintingStatus(key, taskType, action, comment, branch) {
-    const lock = LockService.getScriptLock();
+    const lock = SheetService.productionLock();
     lock.waitLock(30000);
     try {
       SheetService.ensureOrderColumn("Малярка — ручной приоритет");

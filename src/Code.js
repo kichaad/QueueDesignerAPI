@@ -252,6 +252,7 @@ function assertClientAppVersion(clientVersion) {
 }
 
 function getOrders(section, clientVersion) {
+  if(typeof TimewebConstructorSql!=='undefined'&&TimewebConstructorSql.frozen()&&section==='constructors')throw new Error('SQL_MASTER|Очередь конструкторов находится в SQL на app.dcw.moscow.');
   const responseVersion = assertClientAppVersion(clientVersion);
   const snapshot = OrderService.getOrders(section);
   snapshot.appVersion = responseVersion;
@@ -601,6 +602,7 @@ function getClaimCandidates() {
 }
 
 function runQueueAction(actionName, args, section, clientVersion) {
+  if(typeof TimewebConstructorSql!=='undefined'&&TimewebConstructorSql.frozen()&&section==='constructors')throw new Error('SQL_MASTER|Очередь конструкторов находится в SQL на app.dcw.moscow.');
   if (PropertiesService.getScriptProperties().getProperty('TIMEWEB_PRODUCTION_GOOGLE_WRITES_DISABLED') === 'enabled') {
     throw new Error('SQL_MASTER|Действия с заказами выполняются в PHP/MySQL.');
   }
