@@ -16,12 +16,13 @@ class TimewebProductionMigrationLink {
     try {
       const sheet=SheetService.getSpreadsheet().getSheetByName(CONFIG.SHEETS.ORDERS);
       if(!sheet)throw new Error('SYNC_SCHEMA|Missing production source sheet.');
-      const values=sheet.getDataRange().getValues();
+      let values=sheet.getDataRange().getValues();
       const headers=values[0].map(x=>String(x||'').trim());
       const ix=name=>headers.indexOf(name);
       if(['Договор','Клиент','Изделие','Менеджер','Этап'].some(name=>ix(name)<0))
         throw new Error('SYNC_SCHEMA|Required source columns missing.');
       const idCol=ix('ID заказа на производство');
+      if(idCol>=0&&sheet.getLastRow()>1){sheet.getRange(2,idCol+1,sheet.getLastRow()-1,1).setNumberFormat('0');values=sheet.getDataRange().getValues();}
       const used=new Map();const targets=[];
       if(idCol>=0){
         for(let row=1;row<values.length;row++){
@@ -59,7 +60,7 @@ class TimewebProductionMigrationLink {
       });
       const targetSheet=idCol<0?SheetService.ensureOrderColumn('ID заказа на производство'):sheet;
       const column=idCol<0?targetSheet.getLastColumn():idCol+1;
-      targets.forEach(item=>targetSheet.getRange(item.row,column).setValue(item.id));
+      targets.forEach(item=>targetSheet.getRange(item.row,column).setNumberFormat('0').setValue(item.id));
       return {tagged:targets.length};
     } finally {lock.releaseLock();}
   }

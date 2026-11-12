@@ -24,6 +24,11 @@ class TimewebConstructorSql {
       }else if(!['status','export','link','reference'].includes(action))throw new Error('BAD_REQUEST|Unknown SQL constructor control action.');
       if(action==='link')return TimewebProductionMigrationLink.apply(payload);
       const sheet=SheetService.getSpreadsheet().getSheetByName(CONFIG.SHEETS.ORDERS);
+      if(['export','reference'].includes(action)){
+        const hs=sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0].map(x=>String(x||'').trim());
+        const id=hs.indexOf('ID заказа на производство');
+        if(id>=0&&sheet.getLastRow()>1)sheet.getRange(2,id+1,sheet.getLastRow()-1,1).setNumberFormat('0');
+      }
       const rows=sheet.getDataRange().getDisplayValues(),headers=(rows[0]||[]).map(x=>String(x||'').trim());
       const stage=headers.indexOf('Этап'),client=headers.indexOf('Клиент'),product=headers.indexOf('Изделие');
       const count=rows.slice(1).filter(r=>String(r[client]||'').trim()||String(r[product]||'').trim()).length;
@@ -38,7 +43,7 @@ class TimewebConstructorSql {
         const order=OrderMapper.map(r),overall=OrderService.resolveOverallStage(order);
         if(overall){order.stage=overall.stage;order.status=overall.status;}
         effectiveStages[i+2]=order.stage;
-        const id=rows[i+1][headers.indexOf('ID заказа на производство')];
+        const id=raw[i+1][headers.indexOf('ID заказа на производство')];
         if(id)order.key='sql-production:'+id;
         return order;
       });
@@ -48,6 +53,8 @@ class TimewebConstructorSql {
           tasks:tasks.map(t=>({key:t.key,taskType:t.taskType,startDate:t.startDate,finishDate:t.finishDate,queue:t.queue,duration:t.duration,dayPart:t.dayPart||''})),
           designOrders:mapped.filter(o=>this.stages().includes(o.stage)).length};
       }
+      const numeric=['ID заказа на производство','Очередность','Очередь','Длительность','Дни ТЗ','Дни Проформы','Дни КД','Резерв КД — очередь','Остаток длительности','Очередь производства','Срок изготовления, дней'];
+      rows.slice(1).forEach((row,i)=>numeric.forEach(name=>{const col=headers.indexOf(name);if(col>=0&&typeof raw[i+1][col]==='number')row[col]=String(raw[i+1][col]);}));
       const data=rows.slice(1),page=data.slice(offset,offset+limit);
       return {schema:1,sheet:'Изделия',headers,rows:page,total:data.length,offset,
         nextOffset:offset+page.length<data.length?offset+page.length:null,dictionaries:this.dictionary(),effectiveStages};
@@ -86,7 +93,18 @@ class TimewebConstructorSql {
         row=free>=0?free+1:sheet.getLastRow()+1;
         if(row>sheet.getMaxRows())sheet.insertRowAfter(sheet.getMaxRows());
       }
+      const stageCol=headers.indexOf('Этап'),prodCol=headers.indexOf('Очередь производства');
+      if(packet.fields['Этап']==='Очередь'&&matches.length){
+        const current=String(values[row-1][stageCol]||'').trim();
+        if(current&&!this.stages().includes(current)){
+          // A prior handoff reached production before its transport acknowledgement.
+          props.setProperty(receipt,String(packet.eventId));
+          return {eventId:packet.eventId,productionOrderId:packet.productionOrderId,duplicate:true};
+        }
+        if(prodCol>=0)packet.fields['Очередь производства']=Math.max(0,...values.slice(1).map(r=>Number(r[prodCol])||0))+10;
+      }
       Object.entries(packet.fields).forEach(([k,v])=>{
+        if(k==='ID заказа на производство')sheet.getRange(row,headers.indexOf(k)+1).setNumberFormat('0');
         const literal=typeof v==='string'&&/^[=']/u.test(v)?"'"+v:v;
         sheet.getRange(row,headers.indexOf(k)+1).setValue(literal);
       });

@@ -5,7 +5,7 @@ const props=new Map([['TIMEWEB_CONSTRUCTOR_SQL_ENABLED','enabled']]);let held=fa
 const sheet={getLastColumn:()=>headers.length,getLastRow:()=>rows.length,getMaxRows:()=>100,
  getDataRange:()=>({getValues:()=>rows.map(r=>r.slice()),getDisplayValues:()=>rows.map(r=>r.map(String))}),
  getRange:(r,c,n=1,w=1)=>({getValues:()=>rows.slice(r-1,r-1+n).map(a=>a.slice(c-1,c-1+w)),
-  getValue:()=>rows[r-1][c-1],setValue:v=>{rows[r-1]??=[];rows[r-1][c-1]=v;},
+  setNumberFormat(){return this;},getValue:()=>rows[r-1][c-1],setValue:v=>{rows[r-1]??=[];rows[r-1][c-1]=v;},
   setValues:vs=>vs.forEach((a,i)=>a.forEach((v,j)=>{rows[r-1+i][c-1+j]=v;}))})};
 const context=vm.createContext({CONFIG:{SHEETS:{ORDERS:'Изделия',DICTIONARIES:'Справочники'}},
  PropertiesService:{getScriptProperties:()=>({getProperty:k=>props.get(k),setProperty:(k,v)=>props.set(k,v),deleteProperty:k=>props.delete(k)})},
@@ -32,3 +32,9 @@ context.C.apply(packet);assert.equal(rows[1][4],'Распил','duplicate packet
 assert.throws(()=>context.C.apply({...packet,eventId:2,fields:{'Дедлайн':'bad'}}),/BAD_REQUEST/);
 assert.equal(held,false);
 console.log('Constructor fence, nested lock, production isolation, literal text and event replay: OK');
+
+rows[1][4]='КД';
+context.S.ensureOrderColumn('Очередь производства');const prodCol=headers.indexOf('Очередь производства');rows[2][prodCol]=50;
+context.C.apply({schema:1,eventId:2,productionOrderId:101,fields:{'ID заказа на производство':101,'Этап':'Очередь','Очередь производства':10},notification:null});
+assert.equal(rows[1][prodCol],60,'production handoff must follow the live production queue');
+console.log('SQL handoff allocates a production priority after all existing production orders');
