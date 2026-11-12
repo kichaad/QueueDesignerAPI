@@ -3,7 +3,7 @@
  */
 const CONFIG = {
 
-  APP_VERSION: "2026.11.09.001",
+  APP_VERSION: "2026.11.12.001",
 
   // ID Google Таблицы
   SPREADSHEET_ID: '1ATht3HeMnWpriNSyofzNlRwcBadDOxZOuqHZU9lM98o',

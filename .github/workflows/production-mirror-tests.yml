@@ -9,6 +9,9 @@ on:
       - 'src/TimewebProductionMigrationLink.js'
       - 'src/SheetService.js'
       - 'src/Code.js'
+      - 'src/Config.js'
+      - 'tests/release-version.cjs'
+      - 'scripts/check-source.cjs'
       - '.github/workflows/production-mirror-tests.yml'
   workflow_dispatch:
 permissions:
@@ -21,6 +24,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - run: node scripts/check-source.cjs
+      - run: node tests/release-version.cjs
       - run: node --check src/TimewebProductionMirror.js
       - run: node tests/production-mirror.cjs
       - run: node --check src/TimewebProductionMigrationLink.js
