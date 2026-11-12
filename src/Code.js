@@ -245,7 +245,7 @@ function assertClientAppVersion(clientVersion) {
   const client = String(clientVersion || '').trim();
   const server = String(CONFIG.APP_VERSION || '').trim();
   // Keep the currently published Timeweb UI working during the coordinated release.
-  if (client !== server && client !== '2026.11.09.001') {
+  if (client !== server && !['2026.11.09.001','2026.11.12.001'].includes(client)) {
     throw new Error('APP_VERSION_MISMATCH|client=' + (client || 'unknown') + '|server=' + server);
   }
   return client;

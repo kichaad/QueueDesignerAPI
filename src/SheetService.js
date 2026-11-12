@@ -864,7 +864,7 @@ class SheetService {
     }
     return true;
 
-  
+
     }finally{writeLock.releaseLock();}
   }
 
@@ -897,7 +897,7 @@ class SheetService {
     });
 
     return true;
-  
+
     }finally{writeLock.releaseLock();}
   }
 
@@ -1153,7 +1153,7 @@ class SheetService {
 
     });
 
-  
+
     }finally{writeLock.releaseLock();}
   }
   }

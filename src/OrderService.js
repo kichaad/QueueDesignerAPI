@@ -21,6 +21,7 @@ class OrderService {
    * Возвращает очередь изделий
    */
   static getOrders(section, preloadedRows) {
+    if(typeof TimewebConstructorSql!=='undefined'&&TimewebConstructorSql.frozen()&&(!section||section==='constructors'))throw new Error('SQL_MASTER|Очередь конструкторов находится в SQL на app.dcw.moscow.');
 
     const activeSection = ["constructors", "malarka", "production", "production_master", "installation", "claims", "order_queue", "supply", "plate", "supplier_orders", "equipment", "equipment_invoices", "tabletops"].includes(section)
       ? section
@@ -2195,6 +2196,7 @@ class OrderService {
 
 
   static createOrder(orderData) {
+    if(typeof TimewebConstructorSql!=='undefined'&&TimewebConstructorSql.frozen())throw new Error('SQL_MASTER|Создание заказов выполняется в SQL на app.dcw.moscow.');
     const order = {
       contract: String(orderData.contract || "").trim(),
       client: String(orderData.client || "").trim(),
