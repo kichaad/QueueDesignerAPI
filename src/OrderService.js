@@ -1355,9 +1355,16 @@ class OrderService {
     }
   }
 
+  static isBeforeManufacturingLaunch(order) {
+    return ["", "ТЗ", "Технолог", "Проформа", "Согласование", "Правки", "КД", "Очередь", "Запуск"]
+      .includes(String(order.stage || "").trim());
+  }
+
   static getManufacturingTasks(orders) {
     const tasks = [];
     orders.forEach(order => {
+      // Draft branch fields are not evidence of a released production order.
+      if (this.isBeforeManufacturingLaunch(order)) return;
       [
         { branch: "ldsp", stage: order.ldspStage, status: order.ldspStatus, offset: 0 },
         { branch: "corpus-mdf", stage: order.corpusMdfStage, status: order.corpusMdfStatus, offset: 0.4 },
@@ -2980,7 +2987,7 @@ class OrderService {
         "Этап Малярка Крашеный ЛДСП", "Статус Малярка Крашеный ЛДСП", "Операция Малярка Крашеный ЛДСП"]
         .forEach(field => SheetService.ensureOrderColumn(field));
 
-      const isLaunched = !["Очередь", "Запуск"].includes(String(order.stage || "").trim());
+      const isLaunched = !this.isBeforeManufacturingLaunch(order);
       const current = {
         hasCorpusLdsp: order.hasCorpusLdsp !== false,
         hasCorpusMdf: Boolean(order.hasCorpusMdf),
