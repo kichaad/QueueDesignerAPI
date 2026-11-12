@@ -244,15 +244,17 @@ function testOrders() {
 function assertClientAppVersion(clientVersion) {
   const client = String(clientVersion || '').trim();
   const server = String(CONFIG.APP_VERSION || '').trim();
-  if (client !== server) {
+  // Keep the currently published Timeweb UI working during the coordinated release.
+  if (client !== server && client !== '2026.11.09.001') {
     throw new Error('APP_VERSION_MISMATCH|client=' + (client || 'unknown') + '|server=' + server);
   }
+  return client;
 }
 
 function getOrders(section, clientVersion) {
-  assertClientAppVersion(clientVersion);
+  const responseVersion = assertClientAppVersion(clientVersion);
   const snapshot = OrderService.getOrders(section);
-  snapshot.appVersion = CONFIG.APP_VERSION;
+  snapshot.appVersion = responseVersion;
   return snapshot;
 }
 
@@ -599,7 +601,10 @@ function getClaimCandidates() {
 }
 
 function runQueueAction(actionName, args, section, clientVersion) {
-  assertClientAppVersion(clientVersion);
+  if (PropertiesService.getScriptProperties().getProperty('TIMEWEB_PRODUCTION_GOOGLE_WRITES_DISABLED') === 'enabled') {
+    throw new Error('SQL_MASTER|Действия с заказами выполняются в PHP/MySQL.');
+  }
+  const responseVersion = assertClientAppVersion(clientVersion);
   SheetService.resetOrderContexts();
   PerformanceService.start(actionName, section);
   const actions = {
@@ -673,7 +678,7 @@ function runQueueAction(actionName, args, section, clientVersion) {
     const patch = result && result.patch;
     if (patch) {
       PerformanceService.finish({ actionMs: actionMs, responseType: "patch", snapshotMs: 0, snapshotOrders: 0, snapshotBytes: 0 });
-      return { result: result, patch: patch, appVersion: CONFIG.APP_VERSION, performance: { actionMs: actionMs, responseType: "patch" } };
+      return { result: result, patch: patch, appVersion: responseVersion, performance: { actionMs: actionMs, responseType: "patch" } };
     }
     const snapshotStartedAt = Date.now();
     const snapshot = OrderService.getOrders(section, SheetService.getActionOrderRows());
@@ -685,8 +690,8 @@ function runQueueAction(actionName, args, section, clientVersion) {
       actionMs: actionMs, responseType: "snapshot", snapshotMs: snapshotMs, serializationMs: serializationMs,
       snapshotOrders: (snapshot.orders || []).length, snapshotBytes: snapshotBytes
     });
-    snapshot.appVersion = CONFIG.APP_VERSION;
-    return { result: result, snapshot: snapshot, appVersion: CONFIG.APP_VERSION, performance: { actionMs: actionMs, snapshotMs: snapshotMs, serializationMs: serializationMs, responseType: "snapshot" } };
+    snapshot.appVersion = responseVersion;
+    return { result: result, snapshot: snapshot, appVersion: responseVersion, performance: { actionMs: actionMs, snapshotMs: snapshotMs, serializationMs: serializationMs, responseType: "snapshot" } };
   } catch (error) {
     PerformanceService.finish({ failed: true, error: String(error && error.message || error) });
     throw error;
