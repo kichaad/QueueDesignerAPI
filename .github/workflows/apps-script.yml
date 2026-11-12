@@ -24,6 +24,7 @@ jobs:
           cache: npm
       - run: npm ci --no-audit --no-fund
       - run: node scripts/check-source.cjs
+      - run: node tests/constructor-notification.cjs
       - run: node tests/constructor-sql.cjs
       - run: node tests/release-version.cjs
       - run: node tests/production-mirror.cjs

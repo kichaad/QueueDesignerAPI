@@ -1,0 +1,16 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const c=vm.createContext({});
+vm.runInContext(fs.readFileSync('src/NotificationService.js','utf8')+'\nthis.N=NotificationService;this.headers=NOTIFICATION_LOG_HEADERS;',c);
+const rows=[Array.from(c.headers)],ix=k=>rows[0].indexOf(k);let attempts=0;
+const sheet={getDataRange:()=>({getValues:()=>rows.map(r=>r.slice())})};
+c.N.ensureLogSheet=()=>sheet;c.N.getSettings=()=>({senderName:'Test'});
+c.N.resolveRecipients=()=>({recipients:[{name:'Constructor',email:'test@example.invalid'}]});
+c.N.buildNotification=()=>({});
+c.N.recordAndSend=(id,old,item,def,n,status,error,key)=>{const r=[];r[ix('ID события')]=id;r[ix('Статус')]='FAILED';r[ix('Email получателя')]='test@example.invalid';rows.push(r);attempts++;return {status:'FAILED'};};
+c.N.sendNotification=()=>{attempts++;return {status:'SENT'};};
+c.N.updateLogRow=(s,row,status)=>{rows[row-1][ix('Статус')]=status;};
+assert.equal(c.N.deliverSqlEvent(7,{},{} ,'KD_ASSIGNED')[0].status,'FAILED');
+assert.equal(c.N.deliverSqlEvent(7,{},{} ,'KD_ASSIGNED')[0].status,'SENT');
+assert.equal(c.N.deliverSqlEvent(7,{},{} ,'KD_ASSIGNED')[0].status,'SENT');
+assert.equal(attempts,2);assert.equal(rows.length,2);
+console.log('SQL notification retries continue the same journal row and do not resend successful delivery');

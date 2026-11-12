@@ -8,6 +8,8 @@ on:
       - 'tests/production-migration-link.cjs'
       - 'src/TimewebProductionMigrationLink.js'
       - 'src/SheetService.js'
+      - 'src/NotificationService.js'
+      - 'tests/constructor-notification.cjs'
       - 'src/TimewebConstructorSql.js'
       - 'tests/constructor-sql.cjs'
       - 'src/OrderService.js'
@@ -29,6 +31,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - run: node tests/constructor-notification.cjs
       - run: node tests/constructor-sql.cjs
       - run: node scripts/check-source.cjs
       - run: node tests/release-version.cjs

@@ -70,6 +70,31 @@ class NotificationService {
     }
   }
 
+  // SQL events use a stable journal ID, so retries continue failed recipients only.
+  static deliverSqlEvent(sqlEventId,oldItem,newItem,eventType) {
+    const definition=this.getEventDefinition(eventType);
+    if(!definition)throw new Error('BAD_REQUEST|Unknown SQL notification event.');
+    const eventId='SQL-CONSTRUCTOR-'+sqlEventId;
+    const sheet=this.ensureLogSheet(),values=sheet.getDataRange().getValues(),headers=values[0]||[];
+    const ix=name=>headers.indexOf(name),existing=[];
+    values.slice(1).forEach((row,i)=>{if(String(row[ix('ID события')]||'')===eventId)existing.push({row,index:i+2});});
+    if(existing.length)return existing.map(({row,index})=>{
+      const status=String(row[ix('Статус')]||'');
+      if(!['FAILED','PENDING'].includes(status))return {eventId,status};
+      const text=String(row[ix('Тело письма')]||'');
+      const result=this.sendNotification({recipientEmail:String(row[ix('Email получателя')]||''),
+        subject:String(row[ix('Тема')]||''),text,html:this.escapeHtml(text).replace(/\n/g,'<br>'),senderName:this.getSettings().senderName});
+      this.updateLogRow(sheet,index,result.status,result.error||'',result.status==='SENT'?new Date():'');
+      return {eventId,status:result.status};
+    });
+    const resolution=this.resolveRecipients(newItem,definition.recipientType);
+    const key='SQL-CONSTRUCTOR-'+sqlEventId;
+    if(!resolution.recipients.length)return [this.recordAndSend(eventId,oldItem,newItem,definition,
+      this.buildNotification(newItem,definition,'',''),'SKIPPED','Нет активного получателя.',key)];
+    return resolution.recipients.map(recipient=>this.recordAndSend(eventId,oldItem,newItem,definition,
+      this.buildNotification(newItem,definition,recipient.name,recipient.email),'PENDING','',key));
+  }
+
   static getEventDefinition(eventType) {
     return {
       TECHNOLOGIST_REVIEW: { code: "TECHNOLOGIST_REVIEW", recipientType: "technologist", action: "Проверить ТЗ" },
