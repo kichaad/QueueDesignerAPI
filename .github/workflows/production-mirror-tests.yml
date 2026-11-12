@@ -12,6 +12,7 @@ on:
       - 'tests/constructor-notification.cjs'
       - 'src/TimewebConstructorSql.js'
       - 'tests/constructor-sql.cjs'
+      - 'tests/design-manufacturing-boundary.cjs'
       - 'src/OrderService.js'
       - 'src/GoogleDriveService.js'
       - 'src/Api.js'
@@ -33,6 +34,7 @@ jobs:
           node-version: '22'
       - run: node tests/constructor-notification.cjs
       - run: node tests/constructor-sql.cjs
+      - run: node tests/design-manufacturing-boundary.cjs
       - run: node scripts/check-source.cjs
       - run: node tests/release-version.cjs
       - run: node --check src/TimewebProductionMirror.js
