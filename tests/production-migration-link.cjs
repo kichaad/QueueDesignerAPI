@@ -8,10 +8,10 @@ function fixture(frozen=true) {
   rows:[['44RM26','Клиент А','Кухня','Менеджер 1','Проформа'],
         ['44RM26','Клиент А','Кухня','Менеджер 1','Технолог']]
  };
- const sheet={
+ const sheet={getLastRow:()=>state.rows.length+1,
    getDataRange(){return {getValues:()=>[state.headers,...state.rows].map(r=>[...r])};},
    getLastColumn(){return state.headers.length;},
-   getRange(row,col){return {setValue(v){if(row===1)state.headers[col-1]=v;
+   getRange(row,col){return {setNumberFormat(format){assert.equal(format,'0');state.numericIdFormatting=true;return this;},setValue(v){if(row===1)state.headers[col-1]=v;
       else state.rows[row-2][col-1]=v;}};}
  };
  const ctx={
@@ -50,3 +50,6 @@ assert.throws(()=>f.link([a,{...b,productionOrderId:101}]),/SYNC_CONFLICT/);
 f=fixture(false);
 assert.throws(()=>f.link([a]),/MIGRATION_NOT_FROZEN/);
 console.log('One-time production SQL ID mapping: freeze, duplicates, conflicts, retry passed');
+
+assert.equal(fixture().state.numericIdFormatting,undefined);
+const typed=fixture();typed.link([a]);assert.equal(typed.state.numericIdFormatting,true);
