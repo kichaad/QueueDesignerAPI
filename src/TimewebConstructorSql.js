@@ -16,6 +16,7 @@ class TimewebConstructorSql {
       if(action==='freeze'){
         props.setProperty('TIMEWEB_CONSTRUCTOR_SQL_ENABLED','enabled');
         props.setProperty('TIMEWEB_PRODUCTION_LINK_ENABLED','enabled');
+        props.setProperty('DCW_APPLICATION_URL','https://app.dcw.moscow');
       }else if(action==='thaw'){
         if(!payload||payload.confirm!=='no-sql-writes')throw new Error('BAD_REQUEST|SQL write reconciliation required before rollback.');
         props.deleteProperty('TIMEWEB_CONSTRUCTOR_SQL_ENABLED');
@@ -93,7 +94,7 @@ class TimewebConstructorSql {
       if(packet.notification){
         const n=packet.notification;
         if(!NotificationService.getEventDefinition(n.type))throw new Error('BAD_REQUEST|Unknown notification event.');
-        const result=NotificationService.onAssignmentChanged(n.before,n.after,{eventType:n.type});
+        const result=NotificationService.deliverSqlEvent(packet.eventId,n.before,n.after,n.type);
         const statuses=Array.isArray(result)?result:[result];
         if(statuses.some(r=>r&&r.status==='FAILED'))throw new Error('NOTIFICATION_FAILED|Notification will be retried.');
       }

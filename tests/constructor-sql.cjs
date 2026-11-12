@@ -12,7 +12,7 @@ const context=vm.createContext({CONFIG:{SHEETS:{ORDERS:'Изделия',DICTIONA
  LockService:{getScriptLock:()=>({waitLock(){assert.equal(held,false,'nested lock must be reentrant');held=true;acquired++;},releaseLock(){held=false;}})},
  SpreadsheetApp:{flush(){}},PerformanceService:{measureWrite:fn=>fn()},
  OrderMapper:{map:x=>x},OrderService:{resolveOverallStage:()=>null},
- NotificationService:{getEventDefinition:()=>({}),onAssignmentChanged:()=>{sent++;return {status:'SENT'};}}
+ NotificationService:{getEventDefinition:()=>({}),deliverSqlEvent:()=>{sent++;return {status:'SENT'};}}
 });
 vm.runInContext(fs.readFileSync('src/SheetService.js','utf8')+'\nthis.S=SheetService;',context);
 context.S.getSpreadsheet=()=>({getSheetByName:()=>sheet});
